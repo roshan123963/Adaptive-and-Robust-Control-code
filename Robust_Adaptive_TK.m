@@ -78,9 +78,14 @@ L_v = P_v / R_v;
 P   = inv(P_v);                              % (A_ref - L_v)'*P + P*(A_ref - L_v) < 0
 
 % Adaptive law: K_hat_dot = B'*P*e*x'*Gamma
-gamma   = 1e3;                               % learning rate
+gamma   = 1e5;                               % learning rate (large enough for a feasible tube)
 Gamma_I = gamma*eye(2);
 Gamma_P = gamma*eye(3);
+
+% Tube (Theorem 2): |c_i*e| <= delta_i = sqrt(c_i*P^-1*c_i' * V_bar),  P^-1 = P_v
+theta_max = 1.5;                             % known bound on ||K_star - K_hat(0)||_F
+V_bar0    = theta_max^2 / gamma;             % V(0) bound (e(0) = 0)
+Q_tilde   = -((A_ref - L_v)'*P + P*(A_ref - L_v));   % V_dot = -e'*Q_tilde*e
 
 
 % Input and Output Constraints
@@ -94,6 +99,7 @@ alpha = diag([80 8 40 4]);
 
 % Command Signal
 dt = 1e-4; T = 40;
+n_sub = 10;                                  % Euler sub-steps per dt (one step diverges at gamma = 1e5)
 t = 0:dt:T; nT = numel(t);
 pulse = zeros(1,nT);
 pulse(t >= 0  & t < 10) =  1;
@@ -101,15 +107,18 @@ pulse(t >= 20 & t < 30) = -1;
 Y_cmd = [deg2rad(15)*pulse; 0.0312*pulse];   % ps_cmd Ny_cmd
 
 % Time Loop
-case_names = {'CBF only (no adaptation)', 'MRAC + CBF'};
-adapt_on   = [0 1];
+case_names = {'MRAC + CBF, no tube', 'MRAC + CBF + tube'};
+adapt_on   = [1 1];
+tube_on    = [0 1];
 
 X = zeros(5,nT,2);  X_ref = zeros(5,nT,2);  U = zeros(2,nT,2);  VW = zeros(4,nT,2);
 K_hist = zeros(2,5,nT);
+Y_lim = zeros(4,nT,2);  Y_lim_ref = zeros(4,nT,2);  D_hist = zeros(4,nT,2);  F_min = inf(4,2);
 
 for c = 1:2
     x = zeros(5,1);  x_ref = zeros(5,1);
     K_I = K_lqr(:,1:2);  K_P = K_lqr(:,3:5);
+    V_bar = V_bar0;
 
     for k = 1:nT
 
@@ -130,12 +139,19 @@ for c = 1:2
         H_x = C_lim * A_ref + alpha * C_lim;
         H_u = [-K_I        -K_I*D_p_reg - K_P*B_p;
                zeros(2,2)   H_w];
-        E     = [-[K_I_dot K_P_dot]*x; zeros(2,1)];
+        E     = [-[K_I_dot K_P_dot]*x_ref; zeros(2,1)] + C_lim*L_v*e;
 
-        % CBF evaluated on the plant state
+        % Tube and its time derivative (zero when tube_on = 0)
+        eQe   = e' * Q_tilde * e;
+        s     = diag(C_lim * P_v * C_lim');
+        s_dot = 2*diag([-[K_I_dot K_P_dot]; zeros(2,5)] * P_v * C_lim');
+        delta     = tube_on(c) * sqrt(s*V_bar);
+        delta_dot = tube_on(c) * (s_dot*V_bar - s*eQe) ./ (2*sqrt(s*V_bar));
+
+        % CBF evaluated on the reference model with tightened limits
         q = [-Y_cmd(:,k); zeros(2,1)];
-        H_max_delta =  H_x*x + H_u*q + E - alpha*Y_max;
-        H_min_delta = -H_x*x - H_u*q - E + alpha*Y_min;
+        H_max_delta =  H_x*x_ref + H_u*q + E + delta_dot - alpha*(Y_max - delta);
+        H_min_delta = -H_x*x_ref - H_u*q - E + delta_dot + alpha*(Y_min + delta);
         vw = H_u \ (max(0, H_min_delta) - max(0, H_max_delta));
         V = vw(1:2);  W = vw(3:4);
 
@@ -144,12 +160,22 @@ for c = 1:2
         % Log
         X(:,k,c) = x;  X_ref(:,k,c) = x_ref;  U(:,k,c) = u;  VW(:,k,c) = vw;
         if adapt_on(c), K_hist(:,:,k) = [K_I K_P]; end
+        Y_lim(:,k,c) = C_lim*x;  Y_lim_ref(:,k,c) = C_lim*x_ref;  D_hist(:,k,c) = delta;
+        F_min(:,c) = min(F_min(:,c), diag(alpha).*(Y_max - Y_min - 2*delta) - 2*delta_dot);   % (F) > 0
 
-        % dynamics
-        x     = x + (A_true*x + B*u + B_ref*Y_cmd(:,k) + B_v*V)*dt;
-        x_ref = x_ref + (A_ref*x_ref + B*W + B_ref*Y_cmd(:,k) + B_v*V + L_v*e)*dt;
-        K_I = K_I + K_I_dot*dt;
-        K_P = K_P + K_P_dot*dt;
+        % dynamics: n_sub Euler sub-steps (V, W held over dt)
+        h = dt/n_sub;
+        for j = 1:n_sub
+            e = x - x_ref;
+            K_I_dot = adapt_on(c) * B' * P * e * x(1:2)' * Gamma_I;
+            K_P_dot = adapt_on(c) * B' * P * e * x(3:5)' * Gamma_P;
+            u = - K_I * x(1:2) - K_P * x(3:5) + W;
+            V_bar = V_bar - (e' * Q_tilde * e)*h;
+            x     = x + (A_true*x + B*u + B_ref*Y_cmd(:,k) + B_v*V)*h;
+            x_ref = x_ref + (A_ref*x_ref + B*W + B_ref*Y_cmd(:,k) + B_v*V + L_v*e)*h;
+            K_I = K_I + K_I_dot*h;
+            K_P = K_P + K_P_dot*h;
+        end
 
     end
 end
@@ -162,6 +188,11 @@ for c = 1:2
     pk = [rad2deg(max(abs(U(:,:,c)),[],2)); rad2deg(max(abs(X(4,:,c)))); rad2deg(max(abs(X(3,:,c))))];
     fprintf('%-26s %8.3f %8.3f %8.3f %8.3f\n', case_names{c}, pk);
 end
+c = 2;
+fprintf('\nTube checks (%s):\n', case_names{c});
+fprintf('  max |c_i*x| / limit      : %s  (<= 1: plant inside original limits)\n', mat2str(max(abs(Y_lim(:,:,c)),[],2)'./Y_max', 4));
+fprintf('  max(|c_i*e| - delta_i)   : %s deg  (<= 0: tube bound holds)\n', mat2str(rad2deg(max(abs(Y_lim(:,:,c) - Y_lim_ref(:,:,c)) - D_hist(:,:,c),[],2))', 3));
+fprintf('  min feasibility margin   : %s  (> 0: condition (F) holds)\n', mat2str(F_min(:,c)', 3));
 
 % Plots (MRAC + CBF)
 c = 2;
@@ -180,6 +211,7 @@ xlabel('ps (dps)'); ylabel('beta (deg)'); title('Limited Output Operational Boun
 
 subplot(4,2,2); plot(t, beta, 'LineWidth', 1.5); hold on; grid on;
 yline([-lim(4) lim(4)], 'k-.'); ylabel('beta, deg');
+plot(t, lim(4) - rad2deg(D_hist(4,:,c)), 'r--', t, -lim(4) + rad2deg(D_hist(4,:,c)), 'r--');
 
 subplot(4,2,4); h = plot(t, rad2deg(Y_cmd(1,:)), t, ps, t, rad2deg(X_ref(4,:,c)), '--', 'LineWidth', 1.5); grid on;
 yline([-lim(3) lim(3)], 'k-.'); ylabel('ps, dps'); legend(h, 'Cmd', 'ps', 'ps_{ref}');
@@ -219,8 +251,8 @@ end
 legend(case_names); xlabel('Time, sec');
 
 
-% CBF only vs MRAC + CBF (same uncertain plant)
-figure('Name', 'CBF only vs MRAC + CBF');
+% No tube vs tube (same uncertain plant)
+figure('Name', 'No tube vs tube');
 ylab = {'beta, deg', 'ps, dps', 'rs, dps'};
 for i = 1:3
     subplot(4,1,i);
@@ -232,3 +264,15 @@ subplot(4,1,1); yline([-lim(4) lim(4)], 'r-.'); legend(case_names);
 subplot(4,1,2); plot(t, rad2deg(Y_cmd(1,:)), 'k--');
 subplot(4,1,4); plot(t, VW(1:2,:,2), 'LineWidth', 1.2); grid on;
 ylabel('v (AW)'); legend('v_{ps}', 'v_{Ny}'); xlabel('Time, sec');
+
+
+% Tube: |c_i*e| <= delta_i
+figure('Name', 'Tube');
+ylab = {'dela, deg', 'delr, deg', 'ps, dps', 'beta, deg'};
+for i = 1:4
+    subplot(4,1,i);
+    plot(t, rad2deg(abs(Y_lim(i,:,2) - Y_lim_ref(i,:,2))), 'b', t, rad2deg(D_hist(i,:,2)), 'r--', 'LineWidth', 1.2); grid on;
+    ylabel(ylab{i});
+end
+subplot(4,1,1); legend('|c_i e|', '\delta_i'); title('Tube bound |c_i e| \leq \delta_i');
+subplot(4,1,4); xlabel('Time, sec');
