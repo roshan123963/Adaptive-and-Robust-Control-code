@@ -69,20 +69,22 @@ A_true = A + B*Theta;
 K_star = K_lqr + Theta;              % ideal gains: A_true - B*K_star = A_ref
 
 
-% Observer-like reference model:  x_ref_dot = A_ref*x_ref + ... + L_v*(x - x_ref)
+% Reference model:  x_ref_dot = A_ref*x_ref + ... + L_v*(x - x_ref)
 nu  = 0.1;
 Q_v = eye(5) + ((nu + 1)/nu) * eye(5);
 R_v = (nu/(nu + 1)) * eye(5);
 P_v = icare(A_ref', eye(5), Q_v, R_v);      % A_ref*P_v + P_v*A_ref' - P_v*R_v^-1*P_v + Q_v = 0
-L_v = P_v / R_v;
-P   = inv(P_v);                              % (A_ref - L_v)'*P + P*(A_ref - L_v) < 0
+% L_v = P_v / R_v;  P = inv(P_v);           % observer-like reference model
+L_v = zeros(5);                              % open-loop reference model
+P   = lyap(A_ref', eye(5));                  % (A_ref - L_v)'*P + P*(A_ref - L_v) = -I
+P_inv = inv(P);
 
 % Adaptive law: K_hat_dot = B'*P*e*x'*Gamma
-gamma   = 1e5;                               % learning rate (large enough for a feasible tube)
+gamma   = 5e4;                               % learning rate (large enough for a feasible tube)
 Gamma_I = gamma*eye(2);
 Gamma_P = gamma*eye(3);
 
-% Tube (Theorem 2): |c_i*e| <= delta_i = sqrt(c_i*P^-1*c_i' * V_bar),  P^-1 = P_v
+% Tube (Theorem 2): |c_i*e| <= delta_i = sqrt(c_i*P^-1*c_i' * V_bar)
 theta_max = 1.5;                             % known bound on ||K_star - K_hat(0)||_F
 V_bar0    = theta_max^2 / gamma;             % V(0) bound (e(0) = 0)
 Q_tilde   = -((A_ref - L_v)'*P + P*(A_ref - L_v));   % V_dot = -e'*Q_tilde*e
@@ -143,8 +145,8 @@ for c = 1:2
 
         % Tube and its time derivative (zero when tube_on = 0)
         eQe   = e' * Q_tilde * e;
-        s     = diag(C_lim * P_v * C_lim');
-        s_dot = 2*diag([-[K_I_dot K_P_dot]; zeros(2,5)] * P_v * C_lim');
+        s     = diag(C_lim * P_inv * C_lim');
+        s_dot = 2*diag([-[K_I_dot K_P_dot]; zeros(2,5)] * P_inv * C_lim');
         delta     = tube_on(c) * sqrt(s*V_bar);
         delta_dot = tube_on(c) * (s_dot*V_bar - s*eQe) ./ (2*sqrt(s*V_bar));
 
@@ -194,7 +196,7 @@ fprintf('  max |c_i*x| / limit      : %s  (<= 1: plant inside original limits)\n
 fprintf('  max(|c_i*e| - delta_i)   : %s deg  (<= 0: tube bound holds)\n', mat2str(rad2deg(max(abs(Y_lim(:,:,c) - Y_lim_ref(:,:,c)) - D_hist(:,:,c),[],2))', 3));
 fprintf('  min feasibility margin   : %s  (> 0: condition (F) holds)\n', mat2str(F_min(:,c)', 3));
 
-% Plots (MRAC + CBF)
+%% Plots (MRAC + CBF)
 c = 2;
 beta = rad2deg(X(3,:,c));  ps = rad2deg(X(4,:,c));  rs = rad2deg(X(5,:,c));
 
