@@ -1,0 +1,877 @@
+\documentclass[lettersize,journal]{IEEEtran}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{cite}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage[hidelinks]{hyperref}
+
+\newtheorem{assumption}{Assumption}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+
+\newcommand{\Kh}{\hat{K}}
+\newcommand{\Khd}{\dot{\hat{K}}}
+\newcommand{\xr}{x_{\mathrm{ref}}}
+\newcommand{\xpr}{x_{p,\mathrm{ref}}}
+\newcommand{\Ar}{A_{\mathrm{ref}}}
+\newcommand{\App}{A_{\mathrm{ref},pp}}
+\newcommand{\Br}{B_{\mathrm{ref}}}
+\newcommand{\ycmd}{y_{\mathrm{cmd}}}
+\newcommand{\ub}{u_{\mathrm{bl}}}
+\newcommand{\uref}{u_{\mathrm{ref}}}
+\newcommand{\utot}{u_{\mathrm{ref}}^{\mathrm{tot}}}
+\newcommand{\yref}{y_{\mathrm{ref}}}
+\newcommand{\Clim}{C_{\mathrm{lim}}}
+\newcommand{\ylim}{y_{\mathrm{lim}}}
+\newcommand{\Creg}{C_{\mathrm{reg}}}
+\newcommand{\Dreg}{D_{\mathrm{reg}}}
+\newcommand{\yreg}{y_{\mathrm{reg}}}
+\newcommand{\Klqr}{K_{\mathrm{lqr}}}
+\newcommand{\eyI}{e_{yI}}
+\newcommand{\Vb}{\bar{V}}
+\newcommand{\Vg}{V_{\mathrm{gap}}}
+\newcommand{\tmax}{\theta_{\max}}
+\newcommand{\T}{\mathrm{T}}
+\newcommand{\R}{\mathbb{R}}
+
+\begin{document}
+
+\title{Adaptive Robust Control for Uncertain Linearized Aerospace Systems under Input-Output Constraints: PI Servo Formulation of Sections II--IV}
+
+\author{Thanakorn~Khamvilai}
+
+\markboth{Draft sections for IEEE Transactions on Control Systems Technology}%
+{Draft sections for IEEE Transactions on Control Systems Technology}
+
+\maketitle
+
+\begin{abstract}
+This note replaces Sections II--IV of the current manuscript draft. The baseline controller is an adaptive proportional-integral (PI) servo-controller with full-state feedback, so that the control augmentation $\pi=[v^\T\ w^\T]^\T$ has as many components as there are constraints and the sensitivity matrix $H_\pi$ is square and invertible. The barrier conditions are enforced on the reference model with limits tightened by a tube derived from the adaptive Lyapunov function. All terms of the resulting control law are computable without knowledge of the plant matrix, and no convergence of the adaptive gains is required. Theorem~\ref{th:main} proves that the closed-loop solution exists for all time, all signals are bounded, the tracking error converges to zero, and the plant satisfies the operational constraints throughout adaptation. The limited outputs may have any vector relative degree: each output row is constrained through a cascade barrier of the same order, with a filtered tube whose derivatives are computable. Besides the standard MRAC assumptions and a feasibility condition on the tube, the structural requirements are a nonsingular decoupling matrix and a minimum-phase channel from the control input to the limited output. The results extend to matched nonlinear uncertainty $\Theta^\T\Phi(x_p)$ with a known Lipschitz regressor, at the price of a wider tube on the input constraints. Finally, the total command applied to the actuator is also constrained, through a quadratic program for the input augmentation, under a compatibility condition between the input and output limits that is shown to be unavoidable.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Adaptive control, control barrier functions, operational constraints, servo-control, robust control.
+\end{IEEEkeywords}
+
+\section{Changes Relative to the Current Draft}
+
+{\color{blue}
+\begin{enumerate}
+\item The notation of the draft is kept: $\ylim$ is the limited plant output, and $z$ stacks the constrained quantities, $z=[\ub^\T\ \ylim^\T]^\T$, with bounds $z_{\min}$, $z_{\max}$ as in (14)--(15) of the draft.
+\item The baseline controller has PI structure, and an anti-windup signal $v$ enters the integrator. With $\ylim\in\R^m$, there are $2m$ constraints and $2m$ decision variables, so $H_\pi\in\R^{2m\times 2m}$, as in the PI design of \cite{menner2026,lavretsky2025}. In the draft, $\pi\in\R^m$ against $2m$ constraint rows.
+\item The command enters through the integrator with a known input matrix, so $\Kh_r$, $K_r^*$, and $\dot r$ are no longer needed, and $z$ is no longer used for $[x^\T\ r^\T]^\T$.
+\item The reference model is driven by the same augmentation signal $\pi$, so $\pi$ cancels from the tracking error dynamics. The reference model has no observer (error-feedback) term.
+\item The barrier is evaluated on the reference model, whose dynamics are known exactly. The approximation (24) of the draft is no longer used. The unknown plant--reference mismatch is covered by a tube, Section~\ref{sec:tube}.
+\item The slope matrix $\alpha$ multiplies the constraint rows from the left, $\alpha C_z$. The scalar case $\alpha=aI$ is included.
+\item Boundedness of the reference model is proved through its zero dynamics, Lemma~\ref{lem:zero}. This replaces the switched-system condition of \cite[Th.~2.3]{lavretsky2025}.
+\item Section~\ref{sec:nonlin} extends the design and Theorem~\ref{th:main} to matched uncertainty $\Theta^\T\Phi(x_p)$ with a known nonlinear regressor $\Phi$.
+\item The total command $u=\ub+w$ is bounded through the reference model plus the tube, Proposition~\ref{prop:input}. Lemma~\ref{lem:active} and Remark~\ref{rem:total} show that the sign argument (62) of \cite{lavretsky2025} does not hold in general, even with constant gains. Section~\ref{sec:total} adds the total command of the reference model to the barrier, through a small quadratic program for $w$, and Theorem~\ref{th:total} bounds the total command of the plant under a compatibility assumption, which Lemma~\ref{lem:active} shows cannot be removed.
+\item The limited outputs may have any vector relative degree $(r_1,\dots,r_m)$, Assumption~\ref{as:reldeg}. A row of relative degree $r_j$ is constrained through a cascade of order $r_j$, \eqref{eq:psi}, and its tube width is passed through $r_j-1$ filters, \eqref{eq:deltachain}, so that its derivatives are computable without $\dot e$. The zero dynamics are those of the normal form, Lemma~\ref{lem:nf}. In the example, this lets $\beta$ be constrained as an output of relative degree two instead of through the small side-force term of $\Clim B_p$.
+\end{enumerate}
+}
+
+All symbols and their dimensions are listed in Tables~\ref{tab:signals} and~\ref{tab:params}.
+
+\begin{table*}[!t]
+\caption{Dimensions, Signals, and States}
+\label{tab:signals}
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{>{$}l<{$} >{$}l<{$} p{12.2cm}}
+\hline
+\text{Symbol} & \text{Dimension} & \text{Definition}\\
+\hline
+n_p & \mathbb{N} & Number of plant states.\\
+m & \mathbb{N} & Number of control inputs; also the number of regulated outputs and of limited outputs. $m\le n_p$.\\
+n & \mathbb{N} & Dimension of the extended state, $n=n_p+m$.\\
+t & \R_{\ge0} & Time.\\
+x_p & \R^{n_p} & Plant state.\\
+u & \R^m & Total control input applied to the plant, $u=\ub+w$.\\
+\ub & \R^m & Baseline adaptive PI control, $\ub=-\Kh x$.\\
+w & \R^m & Barrier augmentation added to the control input.\\
+v & \R^m & Barrier augmentation added to the integrator (anti-windup signal).\\
+\pi & \R^{2m} & Barrier augmentation, $\pi=[v^\T\ w^\T]^\T$.\\
+\pi_0 & \R^{2m} & Command written as an augmentation input, $\pi_0=[-\ycmd^\T\ 0^\T]^\T$.\\
+\yreg & \R^m & Regulated output, which tracks the command.\\
+\ycmd & \R^m & Command; bounded and piecewise continuous.\\
+\ylim & \R^m & Limited plant output, $\ylim=\Clim x_p$.\\
+\eyI & \R^m & Integrated output tracking error, $\dot e_{yI}=\yreg-\ycmd+v$.\\
+x & \R^n & Extended state, $x=[\eyI^\T\ x_p^\T]^\T$; measured (full-state feedback).\\
+z & \R^{2m} & Constrained quantities of the plant, $z=[\ub^\T\ \ylim^\T]^\T=C_z x$.\\
+\xr & \R^n & Reference-model state.\\
+\xi_{\mathrm{ref}},\ \xpr & \R^m,\ \R^{n_p} & First $m$ (integrator) and last $n_p$ (plant) components of $\xr$.\\
+\uref,\ \yref & \R^m,\ \R^m & Constrained quantities of the reference model, $[\uref^\T\ \yref^\T]^\T=C_z\xr$, i.e., $\uref=-\Kh\xr$ and $\yref=\Clim\xpr$.\\
+e & \R^n & Tracking error, $e=x-\xr$.\\
+\eta & \R^{n_p-\bar r} & Zero-dynamics coordinate of the reference model, $\eta=N\xpr$.\\
+\xi_{\mathrm{out}} & \R^{\bar r} & Limited outputs of the reference model and their first $r_j-1$ derivatives, $\xi_{\mathrm{out}}=M_1\xpr$.\\
+\utot & \R^m & Total command of the reference model, $\utot=\uref+w$, \eqref{eq:utot}.\\
+h & \R^{4m} & Plant constraint function, $h=[(z_{\min}-C_zx)^\T\ (C_zx-z_{\max})^\T]^\T\le0$.\\
+\tilde h & \R^{4m} & Tightened constraint function on the reference model, \eqref{eq:htilde}.\\
+\ell & \R^{2m} & Known part of $q_i(\frac{d}{dt})$ applied to $c_i\xr$, row by row, \eqref{eq:ell}.\\
+\psi^{\max}_{i,k},\ \psi^{\min}_{i,k} & \R & Cascade of row $i$, $k=0,\dots,\rho_i-1$, \eqref{eq:psi}; $\psi_{i,0}=\tilde h_i$.\\
+\Delta H_{\min},\ \Delta H_{\max} & \R^{2m},\ \R^{2m} & Barrier conditions without augmentation, \eqref{eq:dHmax}--\eqref{eq:dHmin}.\\
+\delta & \R^{2m} & Tube widths, $\delta=[\delta_1,\dots,\delta_{2m}]^\T$, $\delta_i=\delta_{i,\rho_i-1}$, \eqref{eq:delta}--\eqref{eq:deltachain}.\\
+\delta_{i,k},\ \varepsilon_{i,k} & \R_{>0},\ \R & Stage $k=0,\dots,\rho_i-1$ of the tube of row $i$ and its derivative, \eqref{eq:delta}--\eqref{eq:deltachain}.\\
+V & \R_{\ge0} & Lyapunov function of the adaptive loop, \eqref{eq:V}.\\
+\Vb & \R_{>0} & Computable upper bound of $V$, integrated online, \eqref{eq:Vbar}.\\
+\Vg & \R_{>0} & Constant gap $\Vb(t)-V(t)=\Vb_0-V(0)$.\\
+\hline
+\end{tabular}
+\end{table*}
+
+\begin{table*}[!t]
+\caption{Matrices and Parameters}
+\label{tab:params}
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{>{$}l<{$} >{$}l<{$} p{12.2cm}}
+\hline
+\text{Symbol} & \text{Dimension} & \text{Definition}\\
+\hline
+A_p & n_p\times n_p & Plant matrix; unknown.\\
+B_p & n_p\times m & Plant input matrix; known.\\
+\Creg & m\times n_p & Regulated-output matrix; unknown.\\
+\Dreg & m\times m & Regulated-output feedthrough matrix; known.\\
+\Clim & m\times n_p & Limited-output matrix; known.\\
+A & n\times n & Extended system matrix, $A=[0\ \ \Creg;\ 0\ \ A_p]$; unknown. Its first $m$ columns are zero.\\
+B & n\times m & Extended input matrix, $B=[\Dreg^\T\ B_p^\T]^\T$; known.\\
+\Br,\ B_v & n\times m & Command and anti-windup input matrices, $\Br=-B_v=[-I_m\ \ 0]^\T$.\\
+B_\pi & n\times 2m & Augmentation input matrix, $B_\pi=[B_v\ \ B]$.\\
+\Ar & n\times n & Reference-model matrix; known and Hurwitz, e.g., $\Ar=A_{\mathrm{nom}}-B\Klqr$ for a nominal model $A_{\mathrm{nom}}$.\\
+\App & n_p\times n_p & Lower-right block of $\Ar$.\\
+\Klqr & m\times n & Baseline design gain (e.g., LQR on the nominal model); used as $\Kh(0)$.\\
+K^* & m\times n & Ideal gain, $A-BK^*=\Ar$; unknown and constant. Partition $K^*=[K_I^*\ K_P^*]$, $K_I^*\in\R^{m\times m}$, $K_P^*\in\R^{m\times n_p}$.\\
+\Kh & m\times n & Adaptive gain, $\Kh=[\Kh_I\ \Kh_P]$, $\Kh_I\in\R^{m\times m}$, $\Kh_P\in\R^{m\times n_p}$.\\
+\Delta K & m\times n & Gain error, $\Delta K=\Kh-K^*$.\\
+C_z & 2m\times n & Constrained-quantity matrix, $C_z=[-\Kh_I\ \ -\Kh_P;\ 0\ \ \Clim]$; time varying through $\Kh$.\\
+c_i & 1\times n & $i$th row of $C_z$, $i=1,\dots,2m$.\\
+u_{\min},\ u_{\max} & \R^m & Bounds on $\ub$.\\
+y_{\min},\ y_{\max} & \R^m & Bounds on $\ylim$.\\
+z_{\min},\ z_{\max} & \R^{2m} & Stacked bounds, $z_{\min}=[u_{\min}^\T\ y_{\min}^\T]^\T$, $z_{\max}=[u_{\max}^\T\ y_{\max}^\T]^\T$, with $z_{\min}<z_{\max}$.\\
+\alpha & 2m\times 2m & Barrier slopes of the last stage, $\alpha=\mathrm{diag}(\alpha_1,\dots,\alpha_{2m})\succ0$.\\
+C_j & 1\times n_p & $j$th row of $\Clim$.\\
+r_j,\ \bar r & \mathbb{N} & Relative degree of $y_{\mathrm{lim},j}$, Assumption~\ref{as:reldeg}, and $\bar r=\sum_jr_j\le n_p$.\\
+d_j,\ D_y & 1\times m,\ m\times m & Decoupling row $d_j=C_j\App^{r_j-1}B_p$ and decoupling matrix, \eqref{eq:Dy}; $D_y=\Clim B_p$ if all $r_j=1$.\\
+\rho_i & \mathbb{N} & Relative degree of row $i$ of $C_z$: $\rho_i=1$ for $i\le m$, $\rho_{m+j}=r_j$.\\
+\lambda_{i,k} & \R_{>0} & Cascade rates of row $i$, $k=1,\dots,\rho_i-1$.\\
+q_i,\ q_{i,l} & \text{polynomial},\ \R & $q_i(s)=(s+\alpha_i)\prod_k(s+\lambda_{i,k})=s^{\rho_i}+\sum_lq_{i,l}s^l$, \eqref{eq:q}.\\
+p_{i,k} & \text{polynomial} & $p_{i,k}(s)=\prod_{l=1}^k(s+\lambda_{i,l})$, so $\psi_{i,k}=p_{i,k}(\frac{d}{dt})\tilde h_i$.\\
+\mu & \R_{>0} & Rate of the tube filters \eqref{eq:deltachain}.\\
+b_{i,l} & \R & Coefficients of $(q_i(s)-q_i(0))/s$ in powers of $s+\mu$, \eqref{eq:bcoef}.\\
+H_\pi & 2m\times 2m & Augmentation sensitivity of the barrier, row $i$ equal to $c_i\Ar^{\rho_i-1}B_\pi$, \eqref{eq:Hpi}.\\
+R & 2m\times 2m & QP weight, $R=H_\pi^\T H_\pi$.\\
+P,\ Q & n\times n & Lyapunov pair, $\Ar^\T P+P\Ar=-Q$, $P\succ0$, $Q\succ0$.\\
+\Gamma & n\times n & Adaptation rate, $\Gamma=\mathrm{blkdiag}(\Gamma_I,\Gamma_P)\succ0$, $\Gamma_I\in\R^{m\times m}$, $\Gamma_P\in\R^{n_p\times n_p}$; often $\Gamma_I=\gamma_II$, $\Gamma_P=\gamma_PI$.\\
+\tmax & \R_{>0} & Known bound, $\|K^*-\Kh(0)\|_F<\tmax$.\\
+\Vb_0 & \R_{>0} & Initial value of $\Vb$, $\Vb_0=\tmax^2\lambda_{\max}(\Gamma^{-1})$.\\
+s_i & \R_{>0} & Tube scaling of row $i$, $s_i=c_iP^{-1}c_i^\T$.\\
+\kappa & \R_{>0} & Lower bound on $\sigma_{\min}(\Kh_I(t))$.\\
+N & (n_p-\bar r)\times n_p & Full-row-rank matrix with $NB_p=0$: its rows are orthogonal to every input direction, so $\eta=Nx_p$ is not moved directly by the input.\\
+M_1 & \bar r\times n_p & Output map, rows $C_j\App^k$, $k=0,\dots,r_j-1$, $j=1,\dots,m$; $M_1=\Clim$ if all $r_j=1$.\\
+M & n_p\times n_p & Coordinate change $[\xi_{\mathrm{out}}^\T\ \eta^\T]^\T=Mx_p$, $M=[M_1^\T\ N^\T]^\T$; invertible by Lemma~\ref{lem:nf}.\\
+T_y,\ T_\eta & n_p\times\bar r,\ n_p\times(n_p-\bar r) & Columns of $M^{-1}=[T_y\ T_\eta]$; they rebuild the plant state, $x_p=T_y\xi_{\mathrm{out}}+T_\eta\eta$.\\
+A_0 & (n_p-\bar r)\times(n_p-\bar r) & Zero-dynamics matrix, $A_0=NA_pT_\eta=N\App T_\eta$: the evolution of $\eta$ with $\xi_{\mathrm{out}}$ held at zero.\\
+\hline
+\end{tabular}
+\end{table*}
+
+\section{Problem Formulation}
+
+Consider the MIMO linearized plant
+\begin{align}
+\dot x_p &= A_p x_p + B_p u, \label{eq:plant}\\
+\yreg &= \Creg x_p + \Dreg u, \label{eq:yreg}\\
+\ylim &= \Clim x_p, \label{eq:ylim}
+\end{align}
+where $A_p$ and $\Creg$ are unknown, and $B_p$, $\Dreg$, and $\Clim$ are known. The integrated tracking error is augmented with the anti-windup signal $v$,
+\begin{equation}
+\dot e_{yI} = \yreg - \ycmd + v. \label{eq:integrator}
+\end{equation}
+With the extended state $x=[\eyI^\T\ x_p^\T]^\T$, \eqref{eq:plant}--\eqref{eq:integrator} become
+\begin{equation}
+\dot x = A x + B u + \Br\ycmd + B_v v, \label{eq:ext}
+\end{equation}
+\begin{align}
+A&=\begin{bmatrix}0 & \Creg\\ 0 & A_p\end{bmatrix}, &
+B&=\begin{bmatrix}\Dreg\\ B_p\end{bmatrix}, \notag\\
+\Br&=\begin{bmatrix}-I_m\\ 0\end{bmatrix}, &
+B_v&=\begin{bmatrix}I_m\\ 0\end{bmatrix}. \notag
+\end{align}
+
+The operational constraints are
+\begin{align}
+u_{\min} &\le \ub \le u_{\max}, \label{eq:ucon}\\
+y_{\min} &\le \ylim \le y_{\max}, \label{eq:ycon}
+\end{align}
+componentwise, where $\ub$ is the baseline control defined in Section~\ref{sec:ctrl}. As in \cite{lavretsky2025}, the input bound is imposed on $\ub$. Its relation to the total command $u$ is discussed in Proposition~\ref{prop:input}.
+
+\begin{assumption}[Matching] \label{as:match}
+There is a constant, unknown $K^*\in\R^{m\times n}$ such that $A-BK^*=\Ar$, where $\Ar$ is known and Hurwitz.
+\end{assumption}
+
+\begin{assumption}[Prior bound] \label{as:bound}
+A constant $\tmax$ is known such that $\|K^*-\Kh(0)\|_F<\tmax$.
+\end{assumption}
+
+\begin{assumption}[Full-state feedback] \label{as:meas}
+The extended state $x$ is measured, and $\xr(0)=x(0)$.
+\end{assumption}
+
+\begin{assumption}[Vector relative degree] \label{as:reldeg}
+For each $j=1,\dots,m$, there is an integer $r_j\ge1$ such that $C_j\App^kB_p=0$ for $k=0,\dots,r_j-2$, where $C_j$ is the $j$th row of $\Clim$, and the decoupling matrix
+\begin{equation}
+D_y=\begin{bmatrix}d_1\\ \vdots\\ d_m\end{bmatrix},\qquad d_j=C_j\App^{r_j-1}B_p, \label{eq:Dy}
+\end{equation}
+is nonsingular. There is $\kappa>0$ such that $\sigma_{\min}(\Kh_I(t))\ge\kappa$ for all $t\ge0$.
+\end{assumption}
+
+Assumption~\ref{as:reldeg} uses the known block $\App$ of $\Ar$, see \eqref{eq:Arefblocks} below, but it is a property of the plant. By Assumption~\ref{as:match}, $A_p=\App+B_pK_P^*$, and induction gives $C_jA_p^k=C_j\App^k$ for $k\le r_j-1$, because every extra term contains $C_j\App^lB_p$ with $l\le r_j-2$. Hence $r_j$ is the relative degree of $y_{\mathrm{lim},j}$ for the unknown plant, $d_j=C_jA_p^{r_j-1}B_p$, and $D_y$ is its decoupling matrix \cite[Sec.~5.1]{isidori1995}. If $r_j=1$ for all $j$, then $D_y=\Clim B_p$. We write $\bar r=\sum_{j=1}^mr_j$; Lemma~\ref{lem:nf} shows $\bar r\le n_p$.
+
+\begin{assumption}[Feasibility] \label{as:feas}
+For all $t\ge0$ and $i=1,\dots,2m$, the tube width $\delta_i$ of Section~\ref{sec:tube} satisfies
+\begin{equation}
+2\,q_i\big(\tfrac{d}{dt}\big)\delta_i(t) < q_i(0)\,(z_{\max,i}-z_{\min,i}), \tag{F}
+\end{equation}
+with $q_i$ from \eqref{eq:q} and $q_i(\frac{d}{dt})\delta_i$ from \eqref{eq:qdelta}. At $t=0$, $\xr(0)$ lies in the tightened box \eqref{eq:tight}, and the functions \eqref{eq:psi} are nonpositive.
+\end{assumption}
+
+For a row of relative degree one, $q_i(s)=s+\alpha_i$, and (F) reads $2\delta_i+2\dot\delta_i/\alpha_i<z_{\max,i}-z_{\min,i}$.
+
+\subsection{Zero-Dynamics Coordinates} \label{sec:zerocoord}
+
+\emph{Known blocks of $\Ar$.} Partitioning Assumption~\ref{as:match}, $A-BK^*=\Ar$, with $A=[0\ \ \Creg;\ 0\ \ A_p]$, $B=[\Dreg^\T\ B_p^\T]^\T$, and $K^*=[K_I^*\ K_P^*]$, gives the last $n_p$ rows of $\Ar$:
+\begin{equation}
+\begin{bmatrix}A_{\mathrm{ref},pI} & \App\end{bmatrix} = \begin{bmatrix}-B_pK_I^* & A_p-B_pK_P^*\end{bmatrix}. \label{eq:Arefblocks}
+\end{equation}
+Both blocks are known, because $\Ar$ is.
+
+The barrier will constrain $\ylim$ and, for a row with $r_j\ge2$, also bound its first $r_j-1$ derivatives. These are $\bar r$ combinations of the $n_p$ plant states. To describe the remaining directions, the plant state is split into two groups of coordinates:
+\begin{itemize}
+\item $\xi_{\mathrm{out}}=M_1x_p\in\R^{\bar r}$, the limited outputs and their first $r_j-1$ derivatives, where $M_1\in\R^{\bar r\times n_p}$ stacks the rows $C_j\App^k$, $k=0,\dots,r_j-1$, $j=1,\dots,m$;
+\item $\eta=Nx_p\in\R^{n_p-\bar r}$, combinations of the plant state that the control input does not move directly.
+\end{itemize}
+If every $r_j=1$, then $M_1=\Clim$ and $\xi_{\mathrm{out}}=\ylim$.
+
+\emph{The matrix $N$.} $N$ is a full-row-rank matrix with
+\begin{equation}
+NB_p=0 \label{eq:NBp}
+\end{equation}
+such that $M=[M_1^\T\ N^\T]^\T$ is invertible. Property \eqref{eq:NBp} is the only one used below: any term that enters the dynamics through $B_p$ disappears after multiplication by $N$.
+
+\begin{lemma}[Normal-form coordinates] \label{lem:nf}
+Under Assumption~\ref{as:reldeg}, $M_1$ has full row rank $\bar r\le n_p$, and there is a full-row-rank $N\in\R^{(n_p-\bar r)\times n_p}$ with $NB_p=0$ such that $M$ is invertible.
+\end{lemma}
+\begin{IEEEproof}
+Suppose $\sum_{j,k}\gamma_{jk}C_j\App^k=0$ with not all $\gamma_{jk}$ zero, and let $s=\min\{r_j-1-k:\gamma_{jk}\ne0\}$. Multiply on the right by $\App^sB_p$. A term with $r_j-1-k>s$ vanishes, because then $k+s\le r_j-2$ and $C_j\App^{k+s}B_p=0$. A term with $r_j-1-k=s$ gives $\gamma_{jk}d_j$. For each $j$ at most one $k$ satisfies $r_j-1-k=s$, so $\sum_j\gamma_{j,r_j-1-s}d_j=0$, and all these coefficients are zero because $D_y$ is nonsingular. This contradicts the definition of $s$, so $M_1$ has full row rank, and $\bar r\le n_p$. Next, if $M_1B_p\mu=0$, the rows with $k=r_j-1$ give $D_y\mu=0$, so $\mu=0$. Hence the range of $B_p$ meets $\ker M_1$ only at zero and can be completed to a subspace $\mathcal{W}$ of dimension $\bar r$ with $\mathcal{W}\cap\ker M_1=\{0\}$. Let the rows of $N$ be a basis of the orthogonal complement of $\mathcal{W}$. Then $N$ has $n_p-\bar r$ independent rows, $NB_p=0$, and $\ker N\cap\ker M_1=\mathcal{W}\cap\ker M_1=\{0\}$, so $M$ is invertible.
+\end{IEEEproof}
+
+If every $r_j=1$, then $\mathcal{W}$ is the range of $B_p$, and $N$ can be computed as \texttt{N = null(B\_p')'}. If $\bar r=n_p$, then $N$ is empty and there is no $\eta$.
+
+\emph{Recovering $x_p$.} Splitting $M^{-1}$ by columns as $M^{-1}=[T_y\ \ T_\eta]$, with $T_y\in\R^{n_p\times\bar r}$ and $T_\eta\in\R^{n_p\times(n_p-\bar r)}$, gives the reconstruction formula
+\begin{equation}
+x_p = T_y\,\xi_{\mathrm{out}} + T_\eta\,\eta. \label{eq:recon}
+\end{equation}
+
+\emph{The zero-dynamics matrix.} Along the plant, $\dot x_p=A_px_p+B_pu$, so \eqref{eq:NBp} removes the control input, and $NA_p=N\App+NB_pK_P^*=N\App$ by \eqref{eq:Arefblocks}. Substituting \eqref{eq:recon},
+\begin{equation}
+\dot\eta = A_0\,\eta + N\App T_y\,\xi_{\mathrm{out}}, \label{eq:etaplant}
+\end{equation}
+\begin{equation}
+A_0 = NA_pT_\eta = N\App T_\eta. \label{eq:A0}
+\end{equation}
+$A_0$ describes how $\eta$ evolves when $\xi_{\mathrm{out}}$ is held at zero, i.e., it is the zero-dynamics matrix. Its eigenvalues are the transmission zeros of $(A_p,B_p,\Clim)$ \cite[Sec.~5.1]{isidori1995}. The right-hand side of \eqref{eq:A0} uses only known matrices. For the same reason, the nominal model and the unknown plant have the same zero dynamics: the uncertainty enters only through $B_p$, which $N$ removes.
+
+\begin{assumption}[Minimum phase] \label{as:minphase}
+$A_0$ is Hurwitz, i.e., all transmission zeros of $(A_p,B_p,\Clim)$ lie in the open left half-plane.
+\end{assumption}
+
+Assumption~\ref{as:minphase} can be checked offline from \eqref{eq:A0}. If $\bar r=n_p$, there is no $\eta$, and the assumption is void.
+
+\section{Reference Model and Controller} \label{sec:ctrl}
+
+The controller is
+\begin{align}
+u &= \ub + w, \label{eq:u}\\
+\ub &= -\Kh x = -\Kh_I\eyI - \Kh_P x_p. \label{eq:ubl}
+\end{align}
+With $\pi$, $B_\pi$, and $\pi_0$ from Table~\ref{tab:params}, $B_\pi\pi_0=\Br\ycmd$, and Assumption~\ref{as:match} gives the closed-loop plant
+\begin{equation}
+\dot x = (\Ar - B\,\Delta K)\,x + B_\pi(\pi_0+\pi). \label{eq:cl}
+\end{equation}
+The reference model is driven by the same signals,
+\begin{equation}
+\dot x_{\mathrm{ref}} = \Ar\xr + B_\pi(\pi_0+\pi). \label{eq:ref}
+\end{equation}
+The tracking error obeys
+\begin{equation}
+\dot e = \Ar e - B\,\Delta K\,x, \label{eq:err}
+\end{equation}
+in which $\pi$ does not appear. Let $P\succ0$ solve $\Ar^\T P + P\Ar = -Q$ with $Q\succ0$, and let the adaptive law be \cite{lavretsky2024}
+\begin{equation}
+\Khd = B^\T P\,e\,x^\T\,\Gamma. \label{eq:adapt}
+\end{equation}
+
+The constrained quantities of the plant are
+\begin{equation}
+z=\begin{bmatrix}\ub\\ \ylim\end{bmatrix}=C_z(t)\,x,\qquad
+C_z(t)=\begin{bmatrix}-\Kh_I & -\Kh_P\\ 0 & \Clim\end{bmatrix}, \label{eq:Cz}
+\end{equation}
+and the constraints \eqref{eq:ucon}--\eqref{eq:ycon} read $z_{\min}\le z\le z_{\max}$. Since $\Kh$ varies, $\dot C_z=\begin{bmatrix}-\Khd\\ 0\end{bmatrix}$, which is computable from \eqref{eq:adapt}.
+
+\section{Adaptive Robust Constraint Enforcement}
+
+\subsection{Relative Degree of the Constraint Rows}
+
+Each row $i=1,\dots,2m$ of $C_z$ has a relative degree $\rho_i$: $\rho_i=1$ for the $\ub$ rows, $i\le m$, because $c_iB_\pi$ contains $-\Kh_I$, and $\rho_{m+j}=r_j$ for the $\ylim$ rows. For each row, choose rates $\lambda_{i,1},\dots,\lambda_{i,\rho_i-1}>0$ and $\alpha_i>0$, and define the Hurwitz polynomial
+\begin{equation}
+q_i(s)=(s+\alpha_i)\prod_{k=1}^{\rho_i-1}(s+\lambda_{i,k}) = s^{\rho_i}+\sum_{l=0}^{\rho_i-1}q_{i,l}\,s^l. \label{eq:q}
+\end{equation}
+For $\rho_i=1$, $q_i(s)=s+\alpha_i$. The barrier of row $i$ will act on $q_i(\frac{d}{dt})$ applied to the constrained quantity, which is the first derivative in which $\pi$ appears.
+
+\begin{lemma}[Derivatives of the output rows] \label{lem:outder}
+Under Assumptions~\ref{as:match} and~\ref{as:reldeg}, let $i=m+j$, so $c_i=[0\ \ C_j]$. Then $c_i\Ar^k=[0\ \ C_j\App^k]$ for $k=0,\dots,r_j-1$, $c_i\Ar^kB_\pi=0$ for $k=0,\dots,r_j-2$, and $c_i\Ar^{r_j-1}B_\pi=[0\ \ d_j]$. Hence, along \eqref{eq:ref}, $y^{(k)}_{\mathrm{ref},j}=C_j\App^k\xpr$ for $k=0,\dots,r_j-1$, and
+\begin{equation}
+y^{(r_j)}_{\mathrm{ref},j}=c_i\Ar^{r_j}\xr+d_j\,w. \label{eq:yr}
+\end{equation}
+\end{lemma}
+\begin{IEEEproof}
+By \eqref{eq:Arefblocks}, the last $n_p$ rows of $\Ar$ are $[-B_pK_I^*\ \ \App]$. If $c_i\Ar^k=[0\ \ C_j\App^k]$ with $k\le r_j-2$, then $c_i\Ar^{k+1}=[-C_j\App^kB_pK_I^*\ \ C_j\App^{k+1}]=[0\ \ C_j\App^{k+1}]$, which proves the first claim by induction. The last $n_p$ rows of $B_v$ are zero and those of $B$ are $B_p$, so $c_i\Ar^kB_\pi=[0\ \ C_j\App^kB_p]$ for $k\le r_j-1$, which is zero for $k\le r_j-2$ and $[0\ \ d_j]$ for $k=r_j-1$. Differentiating $y_{\mathrm{ref},j}=c_i\xr$ along \eqref{eq:ref}, $\frac{d}{dt}(c_i\Ar^k\xr)=c_i\Ar^{k+1}\xr+c_i\Ar^kB_\pi(\pi_0+\pi)$, and the last term vanishes for $k\le r_j-2$. For $k=r_j-1$ it equals $d_jw$, since $\pi_0$ has no $w$ component.
+\end{IEEEproof}
+
+\subsection{Sensitivity Matrices}
+
+Let $(H_\pi)_i$ denote row $i$ of $H_\pi$. Define
+\begin{equation}
+\begin{aligned}
+(H_\pi)_i&=c_i\Ar^{\rho_i-1}B_\pi,\\
+\ell_i&=c_i\,q_i(\Ar)\,\xr+\dot c_i\xr+(H_\pi)_i\pi_0,
+\end{aligned} \label{eq:ell}
+\end{equation}
+where $\dot c_i$ is the $i$th row of $\dot C_z=[-\Khd^\T\ 0]^\T$, computable from \eqref{eq:adapt}. For the $\ub$ rows, $(H_\pi)_i=c_iB_\pi$ and $\ell_i=(c_i\Ar+\alpha_ic_i+\dot c_i)\xr+c_iB_\pi\pi_0$. For the $\ylim$ rows, $\dot c_i=0$, and $(H_\pi)_i=[0\ \ d_j]$ by Lemma~\ref{lem:outder}, so $(H_\pi)_i\pi_0=0$. Hence
+\begin{equation}
+H_\pi = \begin{bmatrix}-\Kh_I & -\Kh_I\Dreg-\Kh_P B_p\\ 0 & D_y\end{bmatrix}. \label{eq:Hpi}
+\end{equation}
+With these definitions, along \eqref{eq:ref} and for every row,
+\begin{equation}
+q_i\big(\tfrac{d}{dt}\big)(c_i\xr)=\ell_i+(H_\pi)_i\,\pi. \label{eq:qcx}
+\end{equation}
+For the $\ub$ rows this is $\frac{d}{dt}(c_i\xr)+\alpha_ic_i\xr$, and for the $\ylim$ rows it follows from Lemma~\ref{lem:outder}.
+
+\begin{lemma}[Invertibility] \label{lem:inv}
+Under Assumption~\ref{as:reldeg}, $H_\pi$ is nonsingular for all $t\ge0$, with
+\begin{equation}
+H_\pi^{-1}=\begin{bmatrix}-\Kh_I^{-1} & -\big(\Dreg+\Kh_I^{-1}\Kh_P B_p\big)D_y^{-1}\\ 0 & D_y^{-1}\end{bmatrix}. \label{eq:Hpiinv}
+\end{equation}
+\end{lemma}
+\begin{IEEEproof}
+$H_\pi$ is block upper triangular, so $\det H_\pi=\det(-\Kh_I)\det(D_y)\neq0$. Equation \eqref{eq:Hpiinv} is the inverse of a block triangular matrix.
+\end{IEEEproof}
+
+Lemma~\ref{lem:inv} is the adaptive counterpart of (61) in \cite{lavretsky2025}, with $K_P$ replaced by $\Kh_P(t)$ and $\Clim B_p$ by the decoupling matrix $D_y$. The zero lower-left block means that $w$ depends only on the $\ylim$ rows.
+
+\subsection{Tube} \label{sec:tube}
+
+Define the Lyapunov function and its computable upper bound
+\begin{align}
+V &= e^\T P e + \mathrm{tr}\big(\Delta K\,\Gamma^{-1}\Delta K^\T\big), \label{eq:V}\\
+\Vb(t) &= \Vb_0 - \int_0^t e^\T Q e\,d\tau, \qquad \Vb_0=\tmax^2\,\lambda_{\max}(\Gamma^{-1}). \label{eq:Vbar}
+\end{align}
+For each row $i=1,\dots,2m$, the first stage of the tube is
+\begin{equation}
+\delta_{i,0} = \sqrt{s_i\,\Vb},\qquad s_i = c_i P^{-1} c_i^\T, \label{eq:delta}
+\end{equation}
+\begin{equation}
+\dot\delta_{i,0} = \frac{2\,\dot c_i P^{-1}c_i^\T\,\Vb - s_i\,e^\T Q e}{2\,\delta_{i,0}}. \label{eq:deltadot}
+\end{equation}
+For the $\ylim$ rows, $\dot c_i=0$ and $\dot\delta_{i,0}\le0$. For the $\ub$ rows, $\dot c_i$ is the $i$th row of $-\Khd$, and $\dot\delta_{i,0}$ can have either sign.
+
+A row with $\rho_i\ge2$ needs $\rho_i$ derivatives of its tube width. Differentiating \eqref{eq:deltadot} would require $\dot e$, which contains the unknown $\Delta Kx$. The first stage is therefore passed through $\rho_i-1$ first-order filters with a rate $\mu>0$,
+\begin{equation}
+\dot\delta_{i,k}=\mu\,(\delta_{i,k-1}-\delta_{i,k}),\qquad \delta_{i,k}(0)=\delta_{i,0}(0), \label{eq:deltachain}
+\end{equation}
+for $k=1,\dots,\rho_i-1$, and the tube width is the last stage, $\delta_i=\delta_{i,\rho_i-1}$. For $\rho_i=1$, there is no filter and $\delta_i=\delta_{i,0}$. Let $\varepsilon_{i,0}=\dot\delta_{i,0}$ from \eqref{eq:deltadot} and $\varepsilon_{i,k}=\dot\delta_{i,k}=\mu(\delta_{i,k-1}-\delta_{i,k})$ for $k\ge1$, and define the constants $b_{i,l}$ by
+\begin{equation}
+\frac{q_i(s)-q_i(0)}{s}=\sum_{l=0}^{\rho_i-1}b_{i,l}\,(s+\mu)^l. \label{eq:bcoef}
+\end{equation}
+For $\rho_i=1$, $b_{i,0}=1$. For $\rho_i=2$, $b_{i,0}=\lambda_{i,1}+\alpha_i-\mu$ and $b_{i,1}=1$. Since $(\frac{d}{dt}+\mu)\varepsilon_{i,k}=\mu\varepsilon_{i,k-1}$ for $k\ge1$, $(\frac{d}{dt}+\mu)^l\varepsilon_{i,\rho_i-1}=\mu^l\varepsilon_{i,\rho_i-1-l}$, and \eqref{eq:bcoef} gives
+\begin{equation}
+q_i\big(\tfrac{d}{dt}\big)\delta_i = q_i(0)\,\delta_i+\sum_{l=0}^{\rho_i-1}b_{i,l}\,\mu^l\,\varepsilon_{i,\rho_i-1-l}. \label{eq:qdelta}
+\end{equation}
+Every term of \eqref{eq:qdelta} uses $e^\T Qe$ but not $\dot e$, so it is computable. For $\rho_i=1$, \eqref{eq:qdelta} is $\dot\delta_i+\alpha_i\delta_i$.
+
+\subsection{Barrier on the Reference Model}
+
+The tightened limits are
+\begin{equation}
+z_{\min}+\delta \le C_z\xr \le z_{\max}-\delta, \label{eq:tight}
+\end{equation}
+with the constraint function
+\begin{equation}
+\tilde h = \begin{bmatrix}\tilde h_{\min}\\ \tilde h_{\max}\end{bmatrix}
+= \begin{bmatrix} z_{\min}+\delta-C_z\xr\\ C_z\xr-z_{\max}+\delta\end{bmatrix}\le0. \label{eq:htilde}
+\end{equation}
+For a row with $\rho_i\ge2$, define the cascade
+\begin{equation}
+\begin{aligned}
+\psi^{\max}_{i,0}&=\tilde h_{\max,i},\quad &\psi^{\max}_{i,k}&=\dot\psi^{\max}_{i,k-1}+\lambda_{i,k}\psi^{\max}_{i,k-1},\\
+\psi^{\min}_{i,0}&=\tilde h_{\min,i},\quad &\psi^{\min}_{i,k}&=\dot\psi^{\min}_{i,k-1}+\lambda_{i,k}\psi^{\min}_{i,k-1},
+\end{aligned} \label{eq:psi}
+\end{equation}
+for $k=1,\dots,\rho_i-1$. Equivalently, $\psi^{\max}_{i,k}=p_{i,k}(\frac{d}{dt})\tilde h_{\max,i}$ with $p_{i,k}(s)=\prod_{l=1}^k(s+\lambda_{i,l})$. By Lemma~\ref{lem:outder}, these functions contain derivatives of $c_i\xr$ only up to order $\rho_i-1$, so they do not contain $\pi$, and they are computable as in \eqref{eq:qdelta}. Let
+\begin{align}
+\Delta H_{\max,i} &= \ell_i + q_i\big(\tfrac{d}{dt}\big)\delta_i - q_i(0)\,z_{\max,i}, \label{eq:dHmax}\\
+\Delta H_{\min,i} &= -\ell_i + q_i\big(\tfrac{d}{dt}\big)\delta_i + q_i(0)\,z_{\min,i}. \label{eq:dHmin}
+\end{align}
+For $\rho_i=1$, these are $\ell_i+\dot\delta_i-\alpha_i(z_{\max,i}-\delta_i)$ and $-\ell_i+\dot\delta_i+\alpha_i(z_{\min,i}+\delta_i)$. Applying $q_i(\frac{d}{dt})$ to \eqref{eq:htilde} along \eqref{eq:ref}, with $\Kh$, $\Vb$, and the filter states evolving by \eqref{eq:adapt}, \eqref{eq:Vbar}, and \eqref{eq:deltachain}, \eqref{eq:qcx} gives, for every row,
+\begin{equation}
+q_i\big(\tfrac{d}{dt}\big)\begin{bmatrix}\tilde h_{\min,i}\\ \tilde h_{\max,i}\end{bmatrix} = \begin{bmatrix}-1\\ 1\end{bmatrix}(H_\pi)_i\pi + \begin{bmatrix}\Delta H_{\min,i}\\ \Delta H_{\max,i}\end{bmatrix}. \label{eq:hdot}
+\end{equation}
+The left-hand side is $\dot\psi_{i,\rho_i-1}+\alpha_i\psi_{i,\rho_i-1}$, the barrier condition on the last stage of the cascade. The augmentation is
+\begin{equation}
+\pi = H_\pi^{-1}\big(\max(0,\Delta H_{\min}) - \max(0,\Delta H_{\max})\big). \label{eq:pisol}
+\end{equation}
+With $R=H_\pi^\T H_\pi$, \eqref{eq:pisol} is the unique minimizer of $\pi^\T R\pi$ subject to $q_i(\frac{d}{dt})\tilde h_i\le0$ for every row \cite[Th.~2]{lavretsky2025}.
+
+Every term in \eqref{eq:ell}--\eqref{eq:pisol} is computable: $\Ar$ and $B_\pi$ are design quantities, $\Kh$ and $\Khd$ come from \eqref{eq:adapt}, $e$ is measured by Assumption~\ref{as:meas}, and $\Vb$ and the filter states \eqref{eq:deltachain} are integrated online. In particular, $\ell$ uses $\Ar$ exactly, not as an approximation of $A-B\Kh$.
+
+\section{Main Results}
+
+\begin{lemma}[Closed form satisfies the barrier condition] \label{lem:closed}
+Let $a,b\in\R^{2m}$ with $a_i+b_i<0$ for every $i$, and $\pi=H_\pi^{-1}(\max(0,b)-\max(0,a))$. Then $a+H_\pi\pi\le0$ and $b-H_\pi\pi\le0$.
+\end{lemma}
+\begin{IEEEproof}
+$(H_\pi\pi)_i=\max(0,b_i)-\max(0,a_i)$. If $a_i>0$, then $b_i<-a_i<0$, so $(H_\pi\pi)_i=-a_i$; hence $a_i+(H_\pi\pi)_i=0$ and $b_i-(H_\pi\pi)_i=a_i+b_i<0$. The case $b_i>0$ is symmetric. If $a_i,b_i\le0$, then $(H_\pi\pi)_i=0$.
+\end{IEEEproof}
+
+\begin{lemma}[Lyapunov function and tube] \label{lem:tube}
+Under Assumptions~\ref{as:match}--\ref{as:meas}, on any interval of existence,
+\begin{equation}
+\dot V=-e^\T Q e,\qquad 0\le V(t)\le\Vb(t), \label{eq:Vdot}
+\end{equation}
+and for every row $c_i$,
+\begin{equation}
+|c_i\,e(t)|\le\delta_{i,0}(t),\qquad \|\Delta K(t)\|_F^2\le\lambda_{\max}(\Gamma)\,\Vb(t). \label{eq:tubebound}
+\end{equation}
+\end{lemma}
+\begin{IEEEproof}
+Since $K^*$ is constant, $\dot{\Delta K}=\Khd$. Using \eqref{eq:err} and \eqref{eq:adapt},
+\begin{equation*}
+\dot V = -e^\T Q e - 2e^\T PB\Delta K x + 2\,\mathrm{tr}\big(\Delta K\,x\,e^\T PB\big) = -e^\T Q e.
+\end{equation*}
+Hence $V(t)=V(0)-\int_0^t e^\T Q e\,d\tau$. With $e(0)=0$, $V(0)=\mathrm{tr}(\Delta K(0)\Gamma^{-1}\Delta K(0)^\T)\le\lambda_{\max}(\Gamma^{-1})\tmax^2=\Vb_0$, so $V\le\Vb$. By Cauchy--Schwarz in the $P$-norm, $|c_ie|=|c_iP^{-1/2}P^{1/2}e|\le\sqrt{c_iP^{-1}c_i^\T}\sqrt{e^\T Pe}\le\sqrt{s_i\Vb}=\delta_{i,0}$. Finally, $\mathrm{tr}(\Delta K\Gamma^{-1}\Delta K^\T)\ge\|\Delta K\|_F^2/\lambda_{\max}(\Gamma)$.
+\end{IEEEproof}
+
+\begin{lemma}[Filtered tube] \label{lem:ftube}
+Let $i=m+j$ be a $\ylim$ row. On any interval of existence:
+\begin{enumerate}
+\item $\delta_{i,0}\le\delta_{i,1}\le\dots\le\delta_{i,\rho_i-1}=\delta_i\le\delta_{i,0}(0)$, every stage is non-increasing, and $|c_ie|\le\delta_i$;
+\item if $b_{i,l}\ge0$ for $l=0,\dots,\rho_i-1$, then $q_i(\frac{d}{dt})\delta_i\le q_i(0)\delta_i$, so (F) holds for row $i$ at all $t\ge0$ if $2\delta_i(0)<y_{\max,j}-y_{\min,j}$.
+\end{enumerate}
+\end{lemma}
+\begin{IEEEproof}
+1) $\varepsilon_{i,0}=-s_ie^\T Qe/(2\delta_{i,0})\le0$. Suppose $\varepsilon_{i,k-1}\le0$. Then $\frac{d}{dt}(\delta_{i,k}-\delta_{i,k-1})=-\mu(\delta_{i,k}-\delta_{i,k-1})-\varepsilon_{i,k-1}\ge-\mu(\delta_{i,k}-\delta_{i,k-1})$ with zero initial value, so $\delta_{i,k}\ge\delta_{i,k-1}$ by the comparison lemma, and $\varepsilon_{i,k}=\mu(\delta_{i,k-1}-\delta_{i,k})\le0$. By induction every stage is non-increasing and the stages are ordered, so $\delta_i\le\delta_i(0)=\delta_{i,0}(0)$ and, by Lemma~\ref{lem:tube}, $|c_ie|\le\delta_{i,0}\le\delta_i$. 2) In \eqref{eq:qdelta}, $b_{i,l}\ge0$ and $\varepsilon_{i,k}\le0$, so $q_i(\frac{d}{dt})\delta_i\le q_i(0)\delta_i$. Then (F) holds if $2\delta_i<y_{\max,j}-y_{\min,j}$, which holds for all $t$ if it holds at $t=0$, since $\delta_i$ is non-increasing.
+\end{IEEEproof}
+
+The results below are first stated on an interval $[0,T)$ on which the closed-loop solution exists. Theorem~\ref{th:main} then shows $T=\infty$.
+
+\begin{theorem}[Adaptive loop] \label{th:stab}
+Under Assumptions~\ref{as:match}--\ref{as:meas}, on any interval $[0,T)$ of existence, $\|e(t)\|^2\le\Vb_0/\lambda_{\min}(P)$, $\|\Delta K(t)\|_F^2\le\lambda_{\max}(\Gamma)\Vb_0$, and $\int_0^T e^\T Q e\,d\tau\le V(0)$. These bounds do not depend on $T$. Moreover, $\Vb(t)\ge\Vg:=\Vb_0-V(0)>0$.
+\end{theorem}
+\begin{IEEEproof}
+By \eqref{eq:Vdot}, $V(t)\le V(0)\le\Vb_0$, which gives the first two bounds since $V\ge e^\T Pe$ and $V\ge\|\Delta K\|_F^2/\lambda_{\max}(\Gamma)$. Integrating \eqref{eq:Vdot} gives the third. Since $V$ and $\Vb$ decrease by the same integral, $\Vb(t)-V(t)=\Vb_0-V(0)$, which is positive by Assumption~\ref{as:bound}, and $V\ge0$.
+\end{IEEEproof}
+
+\begin{theorem}[Safety during adaptation] \label{th:safe}
+Under Assumptions~\ref{as:match}--\ref{as:feas}, with $\pi$ from \eqref{eq:pisol} and $u$ from \eqref{eq:u}, for all $t\in[0,T)$ and every row $i$:
+\begin{enumerate}
+\item the reference model stays in the tightened box, $z_{\min,i}+\delta_i\le c_i\xr\le z_{\max,i}-\delta_i$, and $\psi^{\max}_{i,k}\le0$, $\psi^{\min}_{i,k}\le0$ for $k=0,\dots,\rho_i-1$;
+\item the plant stays in the original box, $z_{\min,i}\le c_i x\le z_{\max,i}$, i.e., \eqref{eq:ucon} and \eqref{eq:ycon} hold.
+\end{enumerate}
+\end{theorem}
+\begin{IEEEproof}
+1) Set $a=\Delta H_{\max}$ and $b=\Delta H_{\min}$. By \eqref{eq:dHmax}--\eqref{eq:dHmin}, $a_i+b_i=2q_i(\frac{d}{dt})\delta_i-q_i(0)(z_{\max,i}-z_{\min,i})$, which is negative by (F). Lemma~\ref{lem:closed} and \eqref{eq:hdot} give $\dot\psi_{i,\rho_i-1}+\alpha_i\psi_{i,\rho_i-1}\le0$ for both the upper and the lower limit, as scalar functions of time. Since $\psi_{i,\rho_i-1}(0)\le0$ by Assumption~\ref{as:feas}, the comparison lemma \cite[Lemma~3.4]{khalil2002} gives $\psi_{i,\rho_i-1}(t)\le e^{-\alpha_it}\psi_{i,\rho_i-1}(0)\le0$. Then $\dot\psi_{i,k-1}+\lambda_{i,k}\psi_{i,k-1}=\psi_{i,k}\le0$ with $\psi_{i,k-1}(0)\le0$, and the comparison lemma gives $\psi_{i,k-1}\le0$ for $k=\rho_i-1,\dots,1$, down to $\tilde h_i=\psi_{i,0}\le0$. 2) By Lemmas~\ref{lem:tube} and~\ref{lem:ftube}, $|c_ie|\le\delta_i$ for every row, so $c_ix=c_i\xr+c_ie\le(z_{\max,i}-\delta_i)+\delta_i=z_{\max,i}$. The lower bound is identical.
+\end{IEEEproof}
+
+Theorem~\ref{th:safe} combines two classical results, neither of which requires the gains to be constant or converged.
+\begin{enumerate}
+\item \emph{Forward invariance} (the Nagumo theorem, in the comparison-lemma form of \cite[Lemma~2]{lavretsky2025}, applied once per stage of the cascade): the reference model has known dynamics, and $\tilde h$ is differentiated along the full closed loop. The adaptation enters \eqref{eq:hdot} through $\dot C_z$ and the derivatives of $\delta$, all of which are computed online. Hence $q_i(\frac{d}{dt})\tilde h_i\le0$ holds exactly, and $\xr$ never leaves the tightened box.
+\item \emph{Invariance of Lyapunov sublevel sets} (the MRAC Lyapunov argument): since $V$ is non-increasing, $e(t)$ stays in the ellipsoid $\{e: e^\T Pe\le\Vb(t)\}$ at all times. The width of this ellipsoid along the direction $c_i$ is $\delta_{i,0}\le\delta_i$, so the unknown mismatch $c_ie$ is covered by the tightening.
+\end{enumerate}
+Adding the two gives $c_ix=c_i\xr+c_ie$ within the original limits at every instant, including the transient in which $\Kh$ is far from $K^*$.
+
+The coordinates of Section~\ref{sec:zerocoord} are now applied to the reference model, whose plant part is $\xpr$.
+
+\begin{lemma}[Zero dynamics of the reference model] \label{lem:zero}
+Let $\xi_{\mathrm{out}}=M_1\xpr$ and $\eta=N\xpr$. Then $\xi_{\mathrm{out}}$ stacks $y^{(k)}_{\mathrm{ref},j}$, $k=0,\dots,r_j-1$, $j=1,\dots,m$, $\xpr=T_y\xi_{\mathrm{out}}+T_\eta\eta$, and along \eqref{eq:ref},
+\begin{equation}
+\dot\eta = A_0\,\eta + N\App T_y\,\xi_{\mathrm{out}}. \label{eq:zerodyn}
+\end{equation}
+\end{lemma}
+\begin{IEEEproof}
+The first claim is Lemma~\ref{lem:outder}, and the reconstruction is \eqref{eq:recon} applied to $\xpr$. For the dynamics, take the last $n_p$ rows of \eqref{eq:ref}, $\dot x_{\mathrm{ref}}=\Ar\xr+B_v(v-\ycmd)+Bw$. The last $n_p$ rows of $B_v$ are zero, the last $n_p$ rows of $B$ are $B_p$, and the last $n_p$ rows of $\Ar$ are given by \eqref{eq:Arefblocks}. Hence
+\begin{align*}
+\dot x_{p,\mathrm{ref}} &= -B_pK_I^*\xi_{\mathrm{ref}} + \App\xpr + B_pw\\
+&= \App\xpr + B_p\big(w-K_I^*\xi_{\mathrm{ref}}\big).
+\end{align*}
+Every term other than $\App\xpr$ enters through $B_p$, so multiplying by $N$ and using \eqref{eq:NBp} gives $\dot\eta=N\App\xpr$. Substituting $\xpr=T_y\xi_{\mathrm{out}}+T_\eta\eta$ and \eqref{eq:A0} gives \eqref{eq:zerodyn}.
+\end{IEEEproof}
+
+Equation \eqref{eq:zerodyn} contains neither $\Kh$, $v$, $w$, $\xi_{\mathrm{ref}}$, nor the set of active constraints: all of them enter through $B_p$, and $N$ removes them. The only input of \eqref{eq:zerodyn} is $\xi_{\mathrm{out}}$, which the barrier keeps bounded.
+
+\begin{theorem}[Stability and safety] \label{th:main}
+Consider the plant \eqref{eq:ext}, the controller \eqref{eq:u}--\eqref{eq:ubl}, the reference model \eqref{eq:ref}, the adaptive law \eqref{eq:adapt}, the tube \eqref{eq:Vbar}--\eqref{eq:deltachain}, and the augmentation \eqref{eq:pisol}. Under Assumptions~\ref{as:match}--\ref{as:minphase}:
+\begin{enumerate}
+\item the closed-loop solution exists and is unique for all $t\ge0$;
+\item the plant satisfies \eqref{eq:ucon} and \eqref{eq:ycon} for all $t\ge0$, and the reference model stays in the tightened box \eqref{eq:tight};
+\item $x$, $\xr$, $\Kh$, $\Khd$, $\pi$, and $u$ are uniformly bounded;
+\item $e(t)\to0$ and $\Khd(t)\to0$ as $t\to\infty$.
+\end{enumerate}
+\end{theorem}
+\begin{IEEEproof}
+\emph{Step 1 (local existence).} Let $\chi=(x,\xr,\Kh,\Vb,\delta_{i,k})$ be the closed-loop state, where $\delta_{i,k}$, $k\ge1$, are the filter states \eqref{eq:deltachain}, and let $\mathcal{D}$ be the open set on which $\Vb>0$, every $\delta_{i,k}>0$, and $\Kh_I$ is nonsingular. On $\mathcal{D}$, the right-hand side is locally Lipschitz: $\max(0,\cdot)$ is globally Lipschitz, $H_\pi^{-1}$ is smooth by Lemma~\ref{lem:inv}, \eqref{eq:deltachain} is linear, and $\delta_{i,0}=\sqrt{s_i\Vb}$ is smooth because $s_i>0$. Indeed, every row $c_i$ is nonzero: a $\ub$ row satisfies $\|c_i\|\ge\|(\Kh_I)_i\|\ge\sigma_{\min}(\Kh_I)$, where $(\Kh_I)_i$ is the $i$th row of $\Kh_I$, and every row $C_j$ of $\Clim$ is nonzero because $d_j\ne0$. Hence a unique solution exists on a maximal interval $[0,T_{\max})$, and if $T_{\max}<\infty$, then $\chi(t)$ leaves every compact subset of $\mathcal{D}$ as $t\to T_{\max}$ \cite[Sec.~3.1]{khalil2002}.
+
+\emph{Step 2 (adaptive loop).} On $[0,T_{\max})$, Theorem~\ref{th:stab} bounds $e$ and $\Delta K$, hence $\Kh=K^*+\Delta K$, by constants independent of $T_{\max}$, and gives $\Vb\ge\Vg>0$. Then $\delta_{i,0}\ge\sqrt{s_i\Vg}$, $\varepsilon_{i,0}$ is bounded for the $\ylim$ rows, and so are the filter states and $\varepsilon_{i,k}$, because \eqref{eq:deltachain} is a stable linear filter.
+
+\emph{Step 3 (safety).} On $[0,T_{\max})$, Theorem~\ref{th:safe} applies. In particular, $\yref(t)\in[y_{\min},y_{\max}]$, $\uref(t)\in[u_{\min},u_{\max}]$, and $\psi^{\max}_{i,k},\psi^{\min}_{i,k}\le0$.
+
+\emph{Step 4 (reference model).} Let $i=m+j$. By \eqref{eq:psi}, $\psi^{\max}_{i,k}=p_{i,k}(\frac{d}{dt})(y_{\mathrm{ref},j}+\delta_i-y_{\max,j})$ and $\psi^{\min}_{i,k}=p_{i,k}(\frac{d}{dt})(y_{\min,j}+\delta_i-y_{\mathrm{ref},j})$, where $p_{i,k}$ is monic of degree $k$. Suppose $y^{(l)}_{\mathrm{ref},j}$ is bounded for $l<k$. Then $\psi^{\max}_{i,k}\le0$ bounds $y^{(k)}_{\mathrm{ref},j}$ from above and $\psi^{\min}_{i,k}\le0$ bounds it from below, by terms in $y^{(l)}_{\mathrm{ref},j}$, $l<k$, the limits, and $\delta_i^{(l)}$, $l\le k$. These derivatives of $\delta_i$ are linear combinations of the filter states and $\varepsilon_{i,0}$, which are bounded by Step 2. Since $y_{\mathrm{ref},j}$ is bounded by Step 3, induction on $k$ bounds every component of $\xi_{\mathrm{out}}$ (Lemma~\ref{lem:zero}) by a constant $\bar\xi$. Since $A_0$ is Hurwitz by Assumption~\ref{as:minphase}, there are constants $c_0,\lambda_0>0$ such that
+\begin{equation*}
+\|\eta(t)\|\le c_0e^{-\lambda_0t}\|\eta(0)\| + \frac{c_0}{\lambda_0}\,\|N\App T_y\|\,\bar\xi,
+\end{equation*}
+so $\eta$, and hence $\xpr=T_y\xi_{\mathrm{out}}+T_\eta\eta$, are bounded. Next, $\uref=-\Kh_I\xi_{\mathrm{ref}}-\Kh_P\xpr$ gives
+\begin{equation*}
+\xi_{\mathrm{ref}} = -\Kh_I^{-1}\big(\uref+\Kh_P\xpr\big),
+\end{equation*}
+which is bounded because $\|\Kh_I^{-1}\|\le1/\kappa$ by Assumption~\ref{as:reldeg}, and $\uref$, $\Kh_P$, and $\xpr$ are bounded. Hence $\xr$ is bounded, and so is $x=\xr+e$. All bounds are independent of $T_{\max}$.
+
+\emph{Step 5 (global existence).} By Steps 2--4, Lemma~\ref{lem:ftube}, and Assumption~\ref{as:reldeg}, $\chi(t)$ stays in the set where $\|x\|$, $\|\xr\|$, and $\|\Kh\|$ are bounded by constants, $\Vg\le\Vb\le\Vb_0$, $\sqrt{s_i\Vg}\le\delta_{i,k}\le\delta_{i,0}(0)$, and $\sigma_{\min}(\Kh_I)\ge\kappa$. This set is compact and contained in $\mathcal{D}$. By Step 1, $T_{\max}=\infty$, which proves statement 1, and statement 2 follows from Step 3.
+
+\emph{Step 6 (remaining signals).} $\Khd=B^\T Pex^\T\Gamma$ and $\dot C_z$ are bounded. With $\underline{s}=\lambda_{\min}(P^{-1})\min\{\kappa^2,\min_j\|C_j\|^2\}>0$, we have $\delta_i\ge\delta_{i,0}\ge\sqrt{\underline{s}\,\Vg}>0$, and the numerator of \eqref{eq:deltadot} is bounded, so every $\varepsilon_{i,k}$, and hence \eqref{eq:qdelta}, is bounded. Then $\ell$, $\Delta H_{\min}$, and $\Delta H_{\max}$ are bounded, $\|H_\pi^{-1}\|$ is bounded by \eqref{eq:Hpiinv}, and $\pi$ and $u=-\Kh x+w$ are bounded. This proves statement 3.
+
+\emph{Step 7 (convergence).} By \eqref{eq:err}, $\dot e$ is bounded, and $e\in\mathcal{L}_2$ by Theorem~\ref{th:stab}. Barbalat's lemma \cite[Lemma~8.2]{khalil2002} gives $e\to0$, and then $\Khd=B^\T Pex^\T\Gamma\to0$ because $x$ is bounded.
+\end{IEEEproof}
+
+\subsection{The Total Command}
+
+Theorems~\ref{th:safe} and~\ref{th:main} bound $\ub$, not the total command $u=\ub+w$ applied to the actuator. The reference model has its own total command,
+\begin{equation}
+\utot=\uref+w=-\Kh\xr+w, \label{eq:utot}
+\end{equation}
+which is computable. The next proposition shows that the adaptation enters the total command only through the tube, and Lemma~\ref{lem:active} shows what determines $\utot$.
+
+\begin{proposition}[Total command] \label{prop:input}
+Under Assumptions~\ref{as:match}--\ref{as:feas}, on any interval of existence:
+\begin{enumerate}
+\item if at time $t$ no $\ylim$ row of $\Delta H_{\min}$ or $\Delta H_{\max}$ is positive, then $w(t)=0$ and $u(t)=\ub(t)\in[u_{\min},u_{\max}]$;
+\item at every $t$, $u=\utot-\Kh e$, and $|u_i-u^{\mathrm{tot}}_{\mathrm{ref},i}|\le\delta_i$ for $i=1,\dots,m$;
+\item consequently, if $u_{\min}+\delta_{1:m}\le\utot(t)\le u_{\max}-\delta_{1:m}$, then $u_{\min}\le u(t)\le u_{\max}$, where $\delta_{1:m}$ stacks the tube widths of the $\ub$ rows.
+\end{enumerate}
+\end{proposition}
+\begin{IEEEproof}
+1) By \eqref{eq:Hpiinv}, $w=D_y^{-1}\big(\max(0,\Delta H_{\min})-\max(0,\Delta H_{\max})\big)_{y}$, where $(\cdot)_y$ denotes the last $m$ rows. These rows are zero by hypothesis, so $w=0$, and Theorem~\ref{th:safe} bounds $\ub$. 2) $u=-\Kh x+w=-\Kh\xr+w-\Kh e=\utot-\Kh e$. The $i$th $\ub$ row of $C_z$ is $c_i=-\Kh_i$, so $|u_i-u^{\mathrm{tot}}_{\mathrm{ref},i}|=|c_ie|\le\delta_i$ by Lemma~\ref{lem:tube}. 3) follows from 2).
+\end{IEEEproof}
+
+Proposition~\ref{prop:input} is the same tube argument as statement 2 of Theorem~\ref{th:safe}, applied to the total command. With $\Kh(t)$ time varying, it reduces the question to the reference model, whose dynamics are known. For the nonlinear uncertainty of Section~\ref{sec:nonlin}, $u-\utot=-\hat\Omega(\psi(x)-\psi(\xr))$, and Lemma~\ref{lem:nltube} gives the same bound with \eqref{eq:nldelta}.
+
+What remains is whether $\utot$ stays in the tightened input box. This cannot be proved in general, as the next lemma shows.
+
+\begin{lemma}[Total command and the output rows] \label{lem:active}
+Under Assumptions~\ref{as:match}--\ref{as:feas}, for every $j$ and $t$, with $i=m+j$,
+\begin{equation}
+d_j\,\utot = y^{(r_j)}_{\mathrm{ref},j} - C_jA_p^{r_j}\xpr - d_j\,\Delta K\,\xr. \label{eq:active}
+\end{equation}
+If the upper limit of row $i$ is active at $t$, $\Delta H_{\max,i}>0$, then the barrier prescribes
+\begin{equation*}
+y^{(r_j)}_{\mathrm{ref},j}=-\delta_i^{(r_j)}-\sum_{l=0}^{r_j-1}q_{i,l}\,\tilde h_{\max,i}^{(l)}.
+\end{equation*}
+At the lower limit, $y^{(r_j)}_{\mathrm{ref},j}=\delta_i^{(r_j)}+\sum_{l=0}^{r_j-1}q_{i,l}\,\tilde h_{\min,i}^{(l)}$.
+\end{lemma}
+\begin{IEEEproof}
+By Lemma~\ref{lem:outder} and \eqref{eq:Arefblocks}, $c_i\Ar^{r_j}\xr=[0\ \ C_j\App^{r_j-1}]\Ar\xr=-d_jK_I^*\xi_{\mathrm{ref}}+C_j\App^{r_j}\xpr$. Since $C_j\App^{r_j-1}=C_jA_p^{r_j-1}$, $C_j\App^{r_j}=C_jA_p^{r_j-1}(A_p-B_pK_P^*)=C_jA_p^{r_j}-d_jK_P^*$, so $c_i\Ar^{r_j}\xr=C_jA_p^{r_j}\xpr-d_jK^*\xr$. By \eqref{eq:yr}, $d_jw=y^{(r_j)}_{\mathrm{ref},j}-c_i\Ar^{r_j}\xr$, and adding $d_j\uref=-d_j\Kh\xr$ gives \eqref{eq:active}. If $\Delta H_{\max,i}>0$, Lemma~\ref{lem:closed} gives $(H_\pi\pi)_i=-\Delta H_{\max,i}$, so $q_i(\frac{d}{dt})\tilde h_{\max,i}=0$ by \eqref{eq:hdot}. Expanding $q_i$ with $\tilde h_{\max,i}^{(r_j)}=y^{(r_j)}_{\mathrm{ref},j}+\delta_i^{(r_j)}$ gives the prescribed derivative. The lower limit is identical.
+\end{IEEEproof}
+
+The right-hand side of \eqref{eq:active} does not contain $\uref$. On an active output row, the total command in the direction $d_j$ is the input that produces the derivative $y^{(r_j)}_{\mathrm{ref},j}$ prescribed by the barrier against the drift $C_jA_p^{r_j}\xpr$, shifted by the gain error $\Delta K\xr$. The baseline $\uref$ only decides how this total is split between $\uref$ and $w$. For $r_j=1$, \eqref{eq:active} on the upper limit reads $C_jB_p\utot=-C_jA_p\xpr-C_jB_p\Delta K\xr-\alpha_i\tilde h_{\max,i}-\dot\delta_i$.
+
+\begin{remark}[The sign argument of \cite{lavretsky2025}] \label{rem:total}
+Statement 1 of Theorem 3 in \cite{lavretsky2025} bounds $u$ through the sign condition $(\ub)_iw_i\le0$ in (62) of \cite{lavretsky2025}. Lemma~\ref{lem:active} shows that this condition does not hold in general, even with constant gains ($\Delta K=0$). Take $m=1$, $r_1=1$, and $C_1B_p=b>0$, and let the upper limit be active on the boundary, $\tilde h_{\max}=0$, with $\dot\delta=0$. Then $\utot=-C_1A_p\xpr/b$. If the drift $C_1A_p\xpr$ pushes $\ylim$ outward while $\uref<0$ already pushes it inward, then $w=\utot-\uref$ can be negative, i.e., $\uref w>0$, and $|\utot|>|\uref|$. If the drift is large enough, $|\utot|>u_{\max}$ for every choice of $\uref$, and no controller can satisfy both limits at that state. In addition, the step from $(\ub)_iw_i\le0$ to $|(\ub+w)_i|\le|(\ub)_i|$ in (62) holds only if $|w_i|\le2|(\ub)_i|$, and for $m>1$, $w=D_y^{-1}(\cdot)_y$ mixes the channels, so the sign of $w_i$ is not tied to that of $(\ub)_i$.
+
+Keeping both the input and the output limits is therefore a viability property of the state, not a consequence of the sign of $w$. With adaptation, \eqref{eq:active} adds the term $d_j\Delta K\xr$, which shrinks with $\Vb$ by Lemma~\ref{lem:tube}, and Proposition~\ref{prop:input} adds at most $\delta_i$. In the example of Remark~\ref{rem:example}, with $r_\beta=1$ and $\alpha_\beta=40$, the total rudder command reached $9.1$ times its limit, $(\ub)_iw_i>0$ occurred while $|u_i|$ exceeded its limit, and every excursion occurred while only the $\beta$ row was active. The size of these excursions is set by $D_y^{-1}$, which depends on the relative degree assigned to $\beta$ (Remark~\ref{rem:example}).
+\end{remark}
+
+\begin{remark}[Role of the tube]
+The tube is used only in statement 2 of Theorem~\ref{th:safe}, to transfer the constraints from $\xr$ to $x$ without knowing $\Delta K$. Boundedness in Theorem~\ref{th:main} uses statement 1 of Theorem~\ref{th:safe} and the Lyapunov bounds, which hold with or without the tube. The proof needs neither persistent excitation nor convergence $\Kh\to K^*$, and it does not use the approximation (24) of the draft.
+\end{remark}
+
+\begin{remark}[Role of the zero dynamics and of minimum phase]
+The barrier controls $2m$ quantities, $\uref$ and $\yref$, and through the cascade \eqref{eq:psi} it also bounds the first $r_j-1$ derivatives of $y_{\mathrm{ref},j}$. Together these fix the $\bar r$ directions $\xi_{\mathrm{out}}$ of $\xpr$, and $\uref$ then fixes the integrator state $\xi_{\mathrm{ref}}$ because $\Kh_I$ is invertible. The remaining $n_p-\bar r$ directions, $\eta$, are not seen by any constraint, and they are not directly actuated, since $NB_p=0$. Their motion, \eqref{eq:zerodyn}, is the internal motion that remains when the outputs are prescribed, i.e., the zero dynamics.
+
+Safety alone only says that the constrained quantities stay in their box. It says nothing about $\eta$. If $A_0$ is Hurwitz, which is the minimum-phase property of Assumption~\ref{as:minphase}, then \eqref{eq:zerodyn} is input-to-state stable and every bounded $\xi_{\mathrm{out}}$ produces a bounded $\eta$. If $A_0$ has an eigenvalue in the open right half-plane, $\eta$ grows exponentially from almost every initial condition even while $\xi_{\mathrm{out}}$ is held constant. This is what turns ``the constraints are satisfied'' into ``the whole state is bounded.'' Because \eqref{eq:zerodyn} does not depend on $\Kh$ or on which constraints are active, no switched-system or dwell-time analysis is needed, and the open-loop plant need not be stable. A larger relative degree leaves fewer zero-dynamics directions; if $\bar r=n_p$, there are none.
+
+Assumption~\ref{as:minphase} is sufficient for this proof, not necessary in general. When no constraint is active, $\xr$ evolves with the Hurwitz matrix $\Ar$, regardless of the zeros. But if the $\ylim$ constraints stay active, $\yref$ is held near its limit and $\xr$ evolves with the zero dynamics. With a zero in the open right half-plane, $\eta$ then diverges while every constraint is satisfied. For $r_j=1$, the switched-system condition of \cite[Th.~2.3]{lavretsky2025} contains the same requirement: for the pattern in which all $\ylim$ rows are active, $\yref$ obeys $\dot{\yref}=-\alpha\yref+\text{const}$ and $\eta$ obeys \eqref{eq:zerodyn}, so the eigenvalues of $A_0$ are eigenvalues of that switched matrix.
+\end{remark}
+
+\begin{remark}[Physical input limits]
+Theorem~\ref{th:main} assumes that the actuator delivers $u=\ub+w$. Only $\ub$ is bounded by \eqref{eq:ucon}, and the proof uses $w$ to keep $\yref$ in its box. If the actuator clips $u$ at $[u_{\min},u_{\max}]$, the plant receives $\mathrm{sat}(u)\ne u$, the term $B(\mathrm{sat}(u)-u)$ appears in \eqref{eq:err}, and Lemma~\ref{lem:tube} no longer holds. As in \cite{lavretsky2025}, \eqref{eq:ucon} is a soft operational limit, and Remark~\ref{rem:total} applies. Section~\ref{sec:total} constrains $u$ itself, so that clipping is not needed while Assumption~\ref{as:compat} holds.
+\end{remark}
+
+\begin{remark}[Integral gain] \label{rem:KI}
+The ideal integral gain is always invertible: if $K_I^*\zeta=0$ with $\zeta\ne0$, then, since the first $m$ columns of $A$ are zero, $\Ar[\zeta^\T\ 0]^\T=-BK_I^*\zeta=0$, which contradicts $\Ar$ being Hurwitz. Assumption~\ref{as:reldeg} asks the same of the estimate $\Kh_I(t)$. It holds in any of the following cases.
+\begin{enumerate}
+\item If $K_I^*=\Kh_I(0)$ (the uncertainty does not change the ideal integral gain), $\Kh_I$ can be frozen by adapting only $\Kh_P$, with $\kappa=\sigma_{\min}(\Kh_I(0))$. Then $\Delta K_I\equiv0$, and $V$ and $\Vb_0$ use $\Gamma_P$ only.
+\item If $K_I^*=\Kh_I(0)$, $\|K_P^*-\Kh_P(0)\|_F\le\theta_P$, $\Gamma_I=\gamma_II$, and $\Gamma_P=\gamma_PI$, then $V$ separates into an integral and a proportional part, and $\|\Kh_I(t)-\Kh_I(0)\|_F^2\le\gamma_IV(0)\le(\gamma_I/\gamma_P)\theta_P^2$. By Weyl's inequality, the condition $\sqrt{\gamma_I/\gamma_P}\,\theta_P<\sigma_{\min}(\Kh_I(0))$ gives $\kappa=\sigma_{\min}(\Kh_I(0))-\sqrt{\gamma_I/\gamma_P}\,\theta_P$, without projection.
+\item In general, a projection operator onto the ball $\|\Kh_I-\Kh_I(0)\|_2\le\varrho_I$, with $\varrho_I<\sigma_{\min}(\Kh_I(0))$ and $K_I^*$ inside the ball, gives $\kappa=\sigma_{\min}(\Kh_I(0))-\varrho_I$. Projection preserves $\dot V\le-e^\T Qe$, so $\Vb$ remains a valid bound.
+\end{enumerate}
+\end{remark}
+
+\begin{remark}[Monitoring (F) and initial conditions]
+For a $\ylim$ row, Lemma~\ref{lem:ftube} reduces (F) to $2\delta_i(0)<y_{\max,j}-y_{\min,j}$ when $b_{i,l}\ge0$ for all $l$. This coefficient condition is void for $\rho_i=1$, reads $\mu\le\lambda_{i,1}+\alpha_i$ for $\rho_i=2$, and holds for every sufficiently small $\mu$ in general: as $\mu\to0$, the $b_{i,l}$ tend to the coefficients of $(q_i(s)-q_i(0))/s$, which are positive because $q_i$ has only negative real roots. For the $\ub$ rows, $\dot\delta_i$ can be positive while $\Kh$ moves, so (F) should be monitored online. A conservative alternative replaces $c_iP^{-1}c_i^\T$ with an upper bound valid over the set of admissible $\Kh$; then $\delta_i$ is non-increasing, and (F) only needs to hold at $t=0$. Since $\Vb_0=\tmax^2/\gamma$ for $\Gamma=\gamma I$, the tube width scales as $\tmax/\sqrt{\gamma}$.
+
+For the initial conditions of Assumption~\ref{as:feas}, \eqref{eq:deltachain} gives $\varepsilon_{i,k}(0)=0$ for $k\ge1$, hence $\delta_i^{(l)}(0)=0$ for $l=1,\dots,\rho_i-1$. If $\xr(0)=0$, then $y^{(l)}_{\mathrm{ref},j}(0)=0$ for $l\le r_j-1$ by Lemma~\ref{lem:outder}, so $\psi_{i,k}(0)=p_{i,k}(0)\tilde h_i(0)$, which is negative whenever $\xr(0)=0$ is strictly inside the tightened box.
+\end{remark}
+
+\begin{remark}[Lateral-directional example] \label{rem:example}
+In our example, $n_p=3$, $m=2$, $x_p=[\beta\ p_s\ r_s]^\T$, $u=[\delta_{\mathrm{ail}}\ \delta_{\mathrm{rud}}]^\T$, and $\Clim$ selects $p_s$ and $\beta$. The $\beta$ row of $B_p$ is $[0\ \ 0.0153]$: the rudder moves $\beta$ directly only through the small side force $Y_{\delta_r}/V$, and mainly through the yaw rate. The simulated plant satisfies $K_I^*=K_{I,\mathrm{lqr}}$, so $\Kh_I$ can be frozen (Remark~\ref{rem:KI}), and it is open-loop unstable, which Theorem~\ref{th:main} allows. Two models are used.
+
+\emph{$Y_{\delta_r}$ kept.} Then $r=(1,1)$ and $D_y=\Clim B_p$, with condition number $582$. The $\beta$ column of $D_y^{-1}$ is $[22.1\ \ 65.5]^\T$, so $w$ is large whenever the $\beta$ row is active (Remark~\ref{rem:total}). The system has a single transmission zero at $-141.5$, caused by the same small term, so Assumption~\ref{as:minphase} holds, and the zero dynamics bound the yaw rate.
+
+\emph{$Y_{\delta_r}=0$ in both the model and the plant.} Then $C_\beta B_p=0$ and $r=(1,2)$. The decoupling matrix is $D_y=[-7.97\ \ 2.69;\ -0.62\ \ 2.36]$, with condition number $4.2$, and the $\beta$ column of $D_y^{-1}$ is $[0.157\ \ 0.465]^\T$. Since $\bar r=3=n_p$, there are no zero dynamics. With $\lambda_{\beta,1}=2$, $\alpha_\beta=5$, and $\mu=7$, $b_{\beta,0}=0$, so Lemma~\ref{lem:ftube} reduces (F) for the $\beta$ row to $2\delta_\beta(0)/(y_{\max}-y_{\min})=0.47<1$.
+
+With the closed form \eqref{eq:pisol}, $\Gamma=10^5I$, and the same $\alpha_\beta=5$ in both models, the total command reached $1.20$ (aileron) and $2.41$ (rudder) times its limit with $r=(1,1)$, and it was outside the limits for $0.29$~s. With $r=(1,2)$, it reached $0.99$ and $1.15$, and it was outside for $0.06$~s. With $r=(1,1)$ and $\alpha_\beta=40$, the rudder reached $9.1$ times its limit. In both models, $\ub$, $p_s$, and $\beta$ stayed within their limits, every stage of the cascade stayed nonpositive, and Proposition~\ref{prop:input} held with a margin of $5.6\times10^{-3}$. The remaining excursion occurs at the command reversal at $t=20$~s, during the adaptation transient, while only the $\beta$ row is active. This is consistent with Lemma~\ref{lem:active}: a larger relative degree reduces the gain from the $\beta$ barrier to $w$, but it does not make the input and output limits jointly feasible. Section~\ref{sec:total} adds the total command to the barrier.
+
+A row with $C_jB_p$ small but nonzero has $r_j=1$. Setting $C_jB_p=0$ only in the design model is an unmatched perturbation, which the theory does not cover, since $B_p$ is assumed known.
+\end{remark}
+
+\section{Extension to Nonlinear Matched Uncertainty} \label{sec:nonlin}
+
+This section replaces the linear uncertainty of Assumption~\ref{as:match} by a matched nonlinear term $\Theta^\T\Phi(x_p)$ with a known regressor $\Phi$. The new symbols are listed in Table~\ref{tab:nonlin}.
+
+\begin{table*}[!t]
+\caption{Additional Symbols for Section~\ref{sec:nonlin}}
+\label{tab:nonlin}
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{>{$}l<{$} >{$}l<{$} p{12.2cm}}
+\hline
+\text{Symbol} & \text{Dimension} & \text{Definition}\\
+\hline
+q & \mathbb{N} & Number of regressor functions.\\
+\Phi & \R^{n_p}\to\R^q & Known regressor; $C^1$ with locally Lipschitz Jacobian, and Lipschitz with constant $L_\Phi$.\\
+J_\Phi & q\times n_p & Jacobian of the regressor, $J_\Phi(x_p)=\partial\Phi/\partial x_p$.\\
+L_\Phi & \R_{>0} & Lipschitz constant, $\|\Phi(a)-\Phi(b)\|\le L_\Phi\|a-b\|$.\\
+\Theta & q\times m & Unknown constant coefficient matrix of the nonlinear uncertainty; $\theta_i\in\R^q$ is its $i$th column.\\
+\hat\Theta,\ \Delta\Theta & q\times m & Estimate of $\Theta$ and its error, $\Delta\Theta=\hat\Theta-\Theta$; $\hat\theta_i\in\R^q$ is the $i$th column of $\hat\Theta$.\\
+\psi & \R^n\to\R^{n+q} & Augmented regressor, $\psi(x)=[x^\T\ \Phi(x_p)^\T]^\T$.\\
+\Omega^* & m\times(n+q) & Ideal parameters, $\Omega^*=[K^*\ \ \Theta^\T]$.\\
+\hat\Omega,\ \Delta\Omega & m\times(n+q) & Adaptive parameters $\hat\Omega=[\Kh\ \ \hat\Theta^\T]$ and their error $\Delta\Omega=\hat\Omega-\Omega^*$.\\
+\Gamma & (n+q)\times(n+q) & Adaptation rate, $\Gamma=\mathrm{blkdiag}(\Gamma_I,\Gamma_P,\Gamma_\Theta)\succ0$, $\Gamma_\Theta\in\R^{q\times q}$.\\
+E_p & n_p\times n & Selector of the plant state, $E_p=[0\ \ I_{n_p}]$, so $x_p=E_px$.\\
+\zeta & \R_{\ge0}\times\R^n\to\R^{2m} & Constrained quantities as a function of time and state, $\zeta(t,x)=[(-\hat\Omega(t)\psi(x))^\T\ (\Clim E_px)^\T]^\T$.\\
+G & 2m\times n & Jacobian of $\zeta$ with respect to the state, evaluated at $\xr$.\\
+\tilde K_P & m\times n_p & Effective proportional gain in $H_\pi$, $\tilde K_P=\Kh_P+\hat\Theta^\T J_\Phi(\xpr)$.\\
+\bar p & \R_{>0} & $\bar p=\lambda_{\max}(E_pP^{-1}E_p^\T)$.\\
+\nu_i & \R_{>0} & Smooth bound on the current estimate, $\nu_i=\sqrt{\|\hat\theta_i(t)\|^2+\epsilon_\nu^2}\ge\|\hat\theta_i(t)\|$, $i=1,\dots,m$.\\
+\epsilon_\nu & \R_{>0} & Small smoothing constant in $\nu_i$.\\
+\hline
+\end{tabular}
+\end{table*}
+
+\subsection{Plant and Controller}
+
+The plant \eqref{eq:plant}--\eqref{eq:ylim} becomes
+\begin{align}
+\dot x_p &= A_p x_p + B_p\big(u + \Theta^\T\Phi(x_p)\big), \label{eq:nlplant}\\
+\yreg &= \Creg x_p + \Dreg\big(u + \Theta^\T\Phi(x_p)\big), \notag
+\end{align}
+with $\ylim=\Clim x_p$ and the integrator \eqref{eq:integrator}. With $\psi(x)=[x^\T\ \Phi(x_p)^\T]^\T$, the extended system is
+\begin{equation}
+\dot x = A x + B\big(u + \Theta^\T\Phi(x_p)\big) + \Br\ycmd + B_v v. \label{eq:nlext}
+\end{equation}
+
+\begin{assumption}[Regressor] \label{as:reg}
+$\Phi$ is known, continuously differentiable with a locally Lipschitz Jacobian $J_\Phi$, and Lipschitz with constant $L_\Phi$. $\Theta$ is unknown and constant.
+\end{assumption}
+
+Assumption~\ref{as:bound} is replaced by $\|\Omega^*-\hat\Omega(0)\|_F<\tmax$, with $\Omega^*=[K^*\ \ \Theta^\T]$. All other assumptions are unchanged. The baseline control and the adaptive law become
+\begin{align}
+\ub &= -\Kh x - \hat\Theta^\T\Phi(x_p) = -\hat\Omega\,\psi(x), \label{eq:nlubl}\\
+\dot{\hat\Omega} &= B^\T P\,e\,\psi(x)^\T\,\Gamma, \label{eq:nladapt}
+\end{align}
+with $u=\ub+w$. Using Assumption~\ref{as:match}, the closed loop is
+\begin{equation}
+\dot x = \Ar x - B\,\Delta\Omega\,\psi(x) + B_\pi(\pi_0+\pi). \label{eq:nlcl}
+\end{equation}
+The reference model \eqref{eq:ref} is unchanged and remains linear, and the tracking error obeys
+\begin{equation}
+\dot e = \Ar e - B\,\Delta\Omega\,\psi(x). \label{eq:nlerr}
+\end{equation}
+With $V=e^\T Pe+\mathrm{tr}(\Delta\Omega\,\Gamma^{-1}\Delta\Omega^\T)$, the computation in Lemma~\ref{lem:tube} holds with $x$ replaced by $\psi(x)$, so $\dot V=-e^\T Qe$, and Theorem~\ref{th:stab} holds with $\Delta K$ replaced by $\Delta\Omega$.
+
+\subsection{Nonlinear Constraint Rows}
+
+The constrained quantities are now nonlinear in the state,
+\begin{equation}
+z=\zeta(t,x)=\begin{bmatrix}-\hat\Omega(t)\psi(x)\\ \Clim E_px\end{bmatrix},\qquad
+\begin{bmatrix}\uref\\ \yref\end{bmatrix}=\zeta(t,\xr). \label{eq:zeta}
+\end{equation}
+Their partial derivatives at $\xr$ are
+\begin{align}
+G &= \frac{\partial\zeta}{\partial x}(t,\xr) = \begin{bmatrix}-\Kh-\hat\Theta^\T J_\Phi(\xpr)E_p\\ \Clim E_p\end{bmatrix}, \label{eq:G}\\
+\frac{\partial\zeta}{\partial t}(t,\xr) &= \begin{bmatrix}-\dot{\hat\Omega}\,\psi(\xr)\\ 0\end{bmatrix}. \label{eq:zetat}
+\end{align}
+For $\hat\Theta=0$, $G=C_z$ and $\partial\zeta/\partial t=\dot C_z\xr$, which recovers Section~IV. The sensitivity matrix becomes
+\begin{equation}
+H_\pi = \begin{bmatrix}-\Kh_I & -\Kh_I\Dreg-\tilde K_P B_p\\ 0 & D_y\end{bmatrix}, \label{eq:nlHpi}
+\end{equation}
+where $\tilde K_P=\Kh_P+\hat\Theta^\T J_\Phi(\xpr)\in\R^{m\times n_p}$. The $\ub$ rows are $G_{1:m}B_\pi$, using $E_pB_v=0$ and $E_pB=B_p$, and the $\ylim$ rows are those of \eqref{eq:Hpi}, because the $\ylim$ rows of $\zeta$ are linear in the state. Its diagonal blocks are those of \eqref{eq:Hpi}, so Lemma~\ref{lem:inv} holds with $\Kh_P$ replaced by $\Kh_P+\hat\Theta^\T J_\Phi(\xpr)$, and $H_\pi$ is invertible under Assumption~\ref{as:reldeg}.
+
+The barrier on the reference model is \eqref{eq:htilde} with $C_z\xr$ replaced by $\zeta(t,\xr)$. The $\ub$ rows have relative degree one, and their entries of \eqref{eq:ell} become
+\begin{equation}
+\ell_i = \frac{\partial\zeta_i}{\partial t}(t,\xr) + G_i\Ar\xr + G_iB_\pi\pi_0 + \alpha_i\,\zeta_i(t,\xr), \label{eq:nlell}
+\end{equation}
+for $i\le m$, where $G_i$ is the $i$th row of $G$. The $\ylim$ rows of $\ell$ are those of \eqref{eq:ell}. With \eqref{eq:dHmax}--\eqref{eq:dHmin} and \eqref{eq:pisol} unchanged in form, the chain rule gives \eqref{eq:hdot} exactly.
+
+\subsection{Tube for the Nonlinear Rows}
+
+The $\ylim$ rows are linear in the state, and their tube \eqref{eq:delta}--\eqref{eq:deltachain} is unchanged. For the $\ub$ rows, $i=1,\dots,m$,
+\begin{equation*}
+z_i-u_{\mathrm{ref},i} = -\Kh_i\,e - \hat\theta_i^\T\big(\Phi(x_p)-\Phi(\xpr)\big),
+\end{equation*}
+where $\Kh_i$ is the $i$th row of $\Kh$. The second term is not linear in $e$, so the tube is widened by a Lipschitz term that uses the current estimate $\hat\theta_i(t)$, which is known online,
+\begin{equation}
+\delta_i = \sqrt{s_i\Vb} + L_\Phi\,\nu_i\sqrt{\bar p\,\Vb},\qquad s_i=\Kh_iP^{-1}\Kh_i^\T, \label{eq:nldelta}
+\end{equation}
+with $\nu_i=\sqrt{\|\hat\theta_i\|^2+\epsilon_\nu^2}$ for a small $\epsilon_\nu>0$, which keeps $\nu_i$ differentiable at $\hat\theta_i=0$. With $\dot\nu_i=\hat\theta_i^\T\dot{\hat\theta}_i/\nu_i$,
+\begin{multline}
+\dot\delta_i = \frac{2\,\dot{\Kh}_iP^{-1}\Kh_i^\T\,\Vb - s_i\,e^\T Qe}{2\sqrt{s_i\Vb}} \\
++ L_\Phi\sqrt{\bar p}\Big(\dot\nu_i\sqrt{\Vb} - \frac{\nu_i\,e^\T Qe}{2\sqrt{\Vb}}\Big). \label{eq:nldeltadot}
+\end{multline}
+
+\begin{lemma}[Nonlinear tube] \label{lem:nltube}
+Under Assumptions~\ref{as:match}, \ref{as:meas}, \ref{as:reg}, and $\|\Omega^*-\hat\Omega(0)\|_F<\tmax$, on any interval of existence, $|z_i-u_{\mathrm{ref},i}|\le\delta_i$ for $i=1,\dots,m$, with $\delta_i$ from \eqref{eq:nldelta}.
+\end{lemma}
+\begin{IEEEproof}
+By Lemma~\ref{lem:tube}, $|\Kh_ie|\le\sqrt{s_i\Vb}$. By Cauchy--Schwarz in the $P$-norm, $\|E_pe\|=\|E_pP^{-1/2}P^{1/2}e\|\le\sqrt{\bar p}\sqrt{e^\T Pe}\le\sqrt{\bar p\Vb}$. Assumption~\ref{as:reg} and $\|\hat\theta_i\|\le\nu_i$ then give $|\hat\theta_i^\T(\Phi(x_p)-\Phi(\xpr))|\le\nu_iL_\Phi\|E_pe\|\le L_\Phi\nu_i\sqrt{\bar p\Vb}$.
+\end{IEEEproof}
+
+\subsection{Main Result}
+
+\begin{theorem}[Stability and safety with nonlinear uncertainty] \label{th:nlmain}
+Consider the plant \eqref{eq:nlext}, the controller \eqref{eq:nlubl} with $u=\ub+w$, the reference model \eqref{eq:ref}, the adaptive law \eqref{eq:nladapt}, the tube \eqref{eq:delta}--\eqref{eq:deltachain} for the $\ylim$ rows and \eqref{eq:nldelta} for the $\ub$ rows, and the augmentation \eqref{eq:pisol} with \eqref{eq:nlHpi} and \eqref{eq:nlell}. Suppose Assumptions~\ref{as:match} and~\ref{as:meas}--\ref{as:reg} hold, $\|\Omega^*-\hat\Omega(0)\|_F<\tmax$, and (F) holds with these tube widths. Then statements 1--4 of Theorem~\ref{th:main} hold, with $\Kh$ replaced by $\hat\Omega$.
+\end{theorem}
+\begin{IEEEproof}
+The proof follows Steps 1--7 of Theorem~\ref{th:main}. Only the following steps change.
+
+\emph{Step 1.} $\zeta$, $G$, and $H_\pi^{-1}$ are locally Lipschitz in $(\xr,\hat\Omega)$ because $J_\Phi$ is locally Lipschitz, $\nu_i$ is smooth because $\nu_i\ge\epsilon_\nu>0$, and $\delta_i>0$ because $\sqrt{s_i\Vb}>0$. Hence the right-hand side is locally Lipschitz on $\mathcal{D}$.
+
+\emph{Step 2.} Theorem~\ref{th:stab} holds with $\Delta\Omega$ in place of $\Delta K$, since $\dot V=-e^\T Qe$.
+
+\emph{Step 3.} Lemma~\ref{lem:closed} applies to $a=\Delta H_{\max}$, $b=\Delta H_{\min}$ by (F), and \eqref{eq:hdot} holds by the chain rule, so the cascade of comparison lemmas keeps $\xr$ in the tightened box. Lemma~\ref{lem:nltube} for the $\ub$ rows and Lemmas~\ref{lem:tube} and~\ref{lem:ftube} for the $\ylim$ rows transfer the constraints to the plant.
+
+\emph{Step 4.} The reference model \eqref{eq:ref} does not contain $\Phi$, so Lemma~\ref{lem:zero} and the bound on $\xpr$ are unchanged. The integrator state is recovered from $\uref=-\Kh_I\xi_{\mathrm{ref}}-\Kh_P\xpr-\hat\Theta^\T\Phi(\xpr)$ as
+\begin{equation*}
+\xi_{\mathrm{ref}}=-\Kh_I^{-1}\big(\uref+\Kh_P\xpr+\hat\Theta^\T\Phi(\xpr)\big),
+\end{equation*}
+which is bounded because $\|\Phi(\xpr)\|\le\|\Phi(0)\|+L_\Phi\|\xpr\|$.
+
+\emph{Step 6.} $\|J_\Phi\|\le L_\Phi$, so $G$, $H_\pi^{-1}$, and $\partial\zeta/\partial t$ are bounded. $\psi(x)$ is bounded, so $\dot{\hat\Omega}$ is bounded. $\nu_i\ge\epsilon_\nu$ and $\dot\nu_i$ is bounded, so the second term of \eqref{eq:nldelta} is smooth, gives the additional lower bound $\delta_i\ge L_\Phi\epsilon_\nu\sqrt{\bar p\Vg}$, and \eqref{eq:nldeltadot} is bounded.
+
+\emph{Step 7.} By \eqref{eq:nlerr}, $\dot e$ is bounded because $\psi(x)$ is bounded, and Barbalat's lemma gives $e\to0$ and $\dot{\hat\Omega}\to0$.
+\end{IEEEproof}
+
+\begin{remark}[What changes and what does not]
+The reference model, the zero dynamics \eqref{eq:zerodyn}, Assumption~\ref{as:minphase}, the block-triangular structure of $H_\pi$, and the tube of the $\ylim$ rows are unchanged, because $\Phi$ enters only through $\ub$ and through the plant, never through \eqref{eq:ref}. Three things change: the $\ub$ rows of the barrier are nonlinear in $\xr$, so $H_\pi$ and $\ell$ depend on $J_\Phi(\xpr)$; the regressor of the adaptive law is $\psi(x)$; and the tube of the $\ub$ rows gains the term $L_\Phi\nu_i\sqrt{\bar p\Vb}$, which makes (F) harder to satisfy. This term shrinks with $\Vb$, i.e., like $1/\sqrt\gamma$ for $\Gamma=\gamma I$. It starts near $L_\Phi\epsilon_\nu\sqrt{\bar p\Vb_0}$ when $\hat\Theta(0)=0$ and grows as $\hat\Theta$ is learned, so $\dot\delta_i$ can be positive and (F) should be monitored online. A constant a priori bound on $\|\hat\theta_i\|$ from Theorem~\ref{th:stab}, $\|\hat\theta_i(0)\|+\tmax+\sqrt{\lambda_{\max}(\Gamma)\Vb_0}$, would also be valid, but in our example it makes the rudder tube wider than the limit.
+\end{remark}
+
+\begin{remark}[Local Lipschitz regressors]
+A global Lipschitz constant excludes common regressors such as $|\beta|\beta$. A constant valid on a known compact set suffices, because that set can be computed before the controller runs. The $\ylim$ tube does not depend on $L_\Phi$, so $\xi_{\mathrm{out}}$ obeys the bound $\bar\xi$ of Step 4 of Theorem~\ref{th:main}, and Lemma~\ref{lem:zero} gives the a priori bound
+\begin{multline*}
+\|\xpr(t)\|\le r_{\mathrm{ref}}:=\|T_y\|\bar\xi \\
++ \|T_\eta\|\Big(c_0\|\eta(0)\|+\frac{c_0}{\lambda_0}\|N\App T_y\|\,\bar\xi\Big),
+\end{multline*}
+with $c_0,\lambda_0$ from $\|e^{A_0t}\|\le c_0e^{-\lambda_0t}$. If every $r_j=1$, then $\xi_{\mathrm{out}}=\yref$ and $\bar\xi=\sup\{\|y\|: y_{\min}\le y\le y_{\max}\}$. Since $\|E_pe\|\le\sqrt{\bar p\Vb_0}$, both $\xpr$ and $x_p$ stay in the ball of radius $r_{\mathrm{ref}}+\sqrt{\bar p\Vb_0}$, and $L_\Phi$ may be taken as the Lipschitz constant of $\Phi$ on that ball.
+\end{remark}
+
+\begin{remark}[Scope]
+The extension still assumes that the uncertainty is matched, that $B$ is known (no unknown control effectiveness), and that $\Phi$ depends only on $x_p$. A regressor that also depends on $\eyI$ can be handled by replacing $E_p$ with $I_n$ in \eqref{eq:G}. $H_\pi$ stays block triangular, because $\Clim E_pB_v=0$, but its upper-left block becomes $-\Kh_I-\hat\Theta^\T\partial\Phi/\partial\eyI$, which must stay uniformly invertible, and Step 4 then requires the map $\xi\mapsto\Kh_I\xi+\hat\Theta^\T\Phi(\xi,\xpr)$ to have a bounded inverse. Unknown control effectiveness $\Lambda$ would make $H_\pi$ unknown, as noted in the current draft after (27).
+\end{remark}
+
+\section{Constraining the Total Command} \label{sec:total}
+
+Theorems~\ref{th:main} and~\ref{th:nlmain} bound $\ub$ and $\ylim$, and Proposition~\ref{prop:input} reduces the total command $u=\ub+w$ to the total command of the reference model, $\utot=\uref+w$, up to the tube. This section adds $\utot$ to the barrier. The development uses the nonlinear rows of Section~\ref{sec:nonlin}, with $\uref=-\hat\Omega\psi(\xr)$; setting $\hat\Theta=0$ recovers the linear case of Sections~\ref{sec:ctrl}--V.
+
+\subsection{Augmentation}
+
+At each $t$, the output rows of \eqref{eq:hdot} and the tightened total-command box are the constraints
+\begin{align}
+&\Delta H_{\min,m+j}\le d_j\,w\le-\Delta H_{\max,m+j},\quad j=1,\dots,m, \tag{Y}\\
+&u_{\min}+\delta_{1:m}\le\uref+w\le u_{\max}-\delta_{1:m}, \tag{U}
+\end{align}
+where $\delta_{1:m}$ stacks the tube widths \eqref{eq:nldelta} of the $\ub$ rows. Constraint (Y) is the barrier condition $q_i(\frac{d}{dt})\tilde h_i\le0$ of the $\ylim$ rows, because $(H_\pi\pi)_{m+j}=d_jw$ by \eqref{eq:nlHpi}. Constraint (U) does not contain a derivative: $w$ enters $\utot$ directly. The augmentation is
+\begin{align}
+w &= \arg\min_{w\in\R^m}\ \|D_yw\|^2\quad\text{subject to (Y) and (U)}, \label{eq:wqp}\\
+v &= \Kh_I^{-1}\big(Xw-s_u\big), \label{eq:vqp}
+\end{align}
+with $X=-\Kh_I\Dreg-\tilde K_PB_p$, the upper-right block of \eqref{eq:nlHpi}, and $s_u=\max(0,\Delta H_{\min,1:m})-\max(0,\Delta H_{\max,1:m})$. By \eqref{eq:vqp}, $(H_\pi\pi)_{1:m}=-\Kh_Iv+Xw=s_u$, which is the value of the closed form \eqref{eq:pisol} for the $\ub$ rows. Without (U), the minimizer of \eqref{eq:wqp} is $D_yw=\max(0,\Delta H_{\min,y})-\max(0,\Delta H_{\max,y})$, the projection of zero onto (Y), so \eqref{eq:wqp}--\eqref{eq:vqp} reduce to \eqref{eq:pisol}. The design changes only when (U) is active.
+
+Problem \eqref{eq:wqp} is a strictly convex quadratic program in $m$ variables, with the constant constraint matrix $[D_y^\T\ \ -D_y^\T\ \ I\ \ -I]^\T$ and a right-hand side that depends on the closed-loop state. For small $m$, it can be solved exactly by enumerating the faces of the feasible polytope.
+
+\begin{assumption}[Compatibility] \label{as:compat}
+There is $\epsilon>0$ such that, for all $t\ge0$, some $w\in\R^m$ satisfies every inequality of (Y) and (U) with a slack of at least $\epsilon$.
+\end{assumption}
+
+\subsection{Main Result}
+
+\begin{theorem}[Total command] \label{th:total}
+Consider the closed loop of Theorem~\ref{th:nlmain}, with $\pi=[v^\T\ w^\T]^\T$ from \eqref{eq:wqp}--\eqref{eq:vqp} in place of \eqref{eq:pisol}. Under the assumptions of Theorem~\ref{th:nlmain} and Assumption~\ref{as:compat}, statements 1--4 of Theorem~\ref{th:main} hold, with $\Kh$ replaced by $\hat\Omega$, and in addition
+\begin{equation}
+u_{\min}\le u(t)\le u_{\max}\quad\text{for all }t\ge0. \label{eq:ubox}
+\end{equation}
+\end{theorem}
+\begin{IEEEproof}
+\emph{Well-posedness.} Under Assumption~\ref{as:compat}, the feasible set of \eqref{eq:wqp} is nonempty, and the cost is strictly convex because $D_y$ is nonsingular, so the minimizer exists and is unique. The minimizer of a strongly convex quadratic program is a Lipschitz function of the right-hand side of its linear constraints wherever the program is feasible \cite{mangasarian1987}. The right-hand side of (Y) and (U) is locally Lipschitz in the closed-loop state on $\mathcal{D}$, so $w$, and by \eqref{eq:vqp} $v$, are locally Lipschitz on the open set $\mathcal{D}_\epsilon\subset\mathcal{D}$ on which (Y) and (U) admit a point with slack greater than $\epsilon/2$. Step 1 of Theorem~\ref{th:main} then holds on $\mathcal{D}_\epsilon$.
+
+\emph{Safety.} (Y) is the barrier condition of the $\ylim$ rows, and \eqref{eq:vqp} gives $(H_\pi\pi)_{1:m}=s_u$, which satisfies the barrier condition of the $\ub$ rows by Lemma~\ref{lem:closed}. Hence $q_i(\frac{d}{dt})\tilde h_i\le0$ for every row, and Theorem~\ref{th:safe} holds as in the proof of Theorem~\ref{th:nlmain}.
+
+\emph{Total command.} By (U), $\utot\in[u_{\min}+\delta_{1:m},\,u_{\max}-\delta_{1:m}]$. By Proposition~\ref{prop:input} and Lemma~\ref{lem:nltube}, $|u_i-u^{\mathrm{tot}}_{\mathrm{ref},i}|=|z_i-u_{\mathrm{ref},i}|\le\delta_i$, which gives \eqref{eq:ubox}.
+
+\emph{Boundedness and convergence.} By (U), $w$ is bounded because $\uref$ is bounded by Theorem~\ref{th:safe}, and $v$ is bounded by \eqref{eq:vqp} and Assumption~\ref{as:reldeg}. Steps 2--4, 6, and 7 of Theorems~\ref{th:main} and~\ref{th:nlmain} do not depend on how $\pi$ is computed. In Step 5, Assumption~\ref{as:compat} keeps the trajectory in the closed set where the slack is at least $\epsilon$, which is contained in $\mathcal{D}_\epsilon$, so $T_{\max}=\infty$.
+\end{IEEEproof}
+
+\begin{remark}[Compatibility]
+Assumption~\ref{as:compat} cannot be removed. If (Y) and (U) have no common point at some state, no augmentation enforces both the output barrier and the tightened total-command box there, and Lemma~\ref{lem:active} identifies the terms that decide this: the drift $C_jA_p^{r_j}\xpr$, the gain error $d_j\Delta\Omega\,\psi(\xr)$, the derivative $y^{(r_j)}_{\mathrm{ref},j}$ that the barrier prescribes, and the limits. Remark~\ref{rem:total} gives a state at which compatibility fails even with constant gains. Assumption~\ref{as:compat} is therefore a condition on the closed-loop trajectory, and the solver of \eqref{eq:wqp} checks it at every step. Slower output rates $\alpha_i$, $\lambda_{i,k}$ widen (Y); a smaller tube, i.e., a smaller $\tmax/\sqrt\gamma$, widens (U). If \eqref{eq:wqp} becomes infeasible, an implementation must give one limit priority. Our implementation keeps (Y), so the output limits and $\ub$ remain guaranteed, and drops (U); this case is outside Theorem~\ref{th:total}.
+\end{remark}
+
+\begin{remark}[Role of the $\ub$ rows]
+With (U) in place, the $\ub$ rows are still needed. They keep the integrator state of the reference model bounded through $\xi_{\mathrm{ref}}=-\Kh_I^{-1}(\uref+\Kh_P\xpr+\hat\Theta^\T\Phi(\xpr))$ in Step 4, which plays the role of anti-windup. They are enforced through $v$ alone, which does not enter (Y) or (U), so they do not compete with the total command.
+\end{remark}
+
+\begin{remark}[Example] \label{rem:totalexample}
+For the model of Remark~\ref{rem:example} with $Y_{\delta_r}=0$, i.e., $r=(1,2)$, we use $\Gamma=2\times10^5I$ on the adapted entries, $\lambda_{\beta,1}=1$, $\alpha_\beta=3$, and $\mu=4$, so $b_{\beta,0}=0$ and $2\delta_\beta(0)/(y_{\max}-y_{\min})=0.33$. The QP \eqref{eq:wqp} was feasible at every step, and (U) was active for $0.66$~s in total, at the command reversals. With the tube, $\ub$ reached $0.91$ (aileron) and $0.63$ (rudder) of its limits, $p_s$ and $\beta$ reached $0.85$ and $0.78$, and the total command reached $0.92$ (aileron) and $0.67$ (rudder), so \eqref{eq:ubox} held with a margin of $4.4\times10^{-3}$~rad. Without the tube and with the same QP, the rudder $\ub$ exceeded its limit by $8.0\%$ at $t=20.46$~s, while $\|\Delta\Omega\|_F=0.93$ (initially $1.33$), $\beta$ was outside its limit for $0.40$~s, and the total rudder command reached $1.15$ times its limit: (U) holds for the reference model, and the plant overshoots it by $c_ie$. With $\Gamma=10^5I$, $\lambda_{\beta,1}=2$, and $\alpha_\beta=5$, the QP was infeasible for $0.11$~s near $t=22$~s, during the adaptation transient, when the rudder tube width was $1.12^\circ$ of the $2^\circ$ limit. A larger $\gamma$, which narrows the tube, and slower $\beta$ rates restored compatibility.
+\end{remark}
+
+\begin{thebibliography}{1}
+\bibitem{menner2026}
+M. Menner and E. Lavretsky, ``Robust linear design for flight control systems with operational constraints,'' in \emph{AIAA SCITECH 2026 Forum}, 2026, p. 1742.
+
+\bibitem{lavretsky2025}
+E. Lavretsky and M. Menner, ``Servo-controllers for linear time-invariant systems with operational constraints,'' in \emph{2025 American Control Conference (ACC)}, 2025, pp. 4909--4916.
+
+\bibitem{lavretsky2024}
+E. Lavretsky and K. A. Wise, \emph{Robust and Adaptive Control: With Aerospace Applications}, 2nd ed. Cham, Switzerland: Springer, 2024.
+
+\bibitem{mangasarian1987}
+O. L. Mangasarian and T.-H. Shiau, ``Lipschitz continuity of solutions of linear inequalities, programs and complementarity problems,'' \emph{SIAM J. Control Optim.}, vol. 25, no. 3, pp. 583--595, 1987.
+
+\bibitem{isidori1995}
+A. Isidori, \emph{Nonlinear Control Systems}, 3rd ed. London, U.K.: Springer, 1995.
+
+\bibitem{khalil2002}
+H. K. Khalil, \emph{Nonlinear Systems}, 3rd ed. Upper Saddle River, NJ: Prentice Hall, 2002.
+\end{thebibliography}
+
+\end{document}
