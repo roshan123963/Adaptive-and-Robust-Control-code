@@ -229,7 +229,7 @@ D_y=\begin{bmatrix}d_1\\ \vdots\\ d_m\end{bmatrix},\qquad d_j=C_j\App^{r_j-1}B_p
 is nonsingular. There is $\kappa>0$ such that $\sigma_{\min}(\Kh_I(t))\ge\kappa$ for all $t\ge0$.
 \end{assumption}
 
-Assumption~\ref{as:reldeg} uses the known block $\App$ of $\Ar$, see \eqref{eq:Arefblocks} below, but it is a property of the plant. By Assumption~\ref{as:match}, $A_p=\App+B_pK_P^*$, and induction gives $C_jA_p^k=C_j\App^k$ for $k\le r_j-1$, because every extra term contains $C_j\App^lB_p$ with $l\le r_j-2$. Hence $r_j$ is the relative degree of $y_{\mathrm{lim},j}$ for the unknown plant, $d_j=C_jA_p^{r_j-1}B_p$, and $D_y$ is its decoupling matrix \cite[Sec.~5.1]{isidori1995}. If $r_j=1$ for all $j$, then $D_y=\Clim B_p$. We write $\bar r=\sum_{j=1}^mr_j$; Lemma~\ref{lem:nf} shows $\bar r\le n_p$.
+Assumption~\ref{as:reldeg} uses the known block $\App$ of $\Ar$, see \eqref{eq:Arefblocks} below, but it is a property of the plant. By Assumption~\ref{as:match}, $A_p=\App+B_pK_P^*$. Expanding $C_jA_p^k=C_j(\App+B_pK_P^*)^k$ gives a sum of products of $k$ factors, each either $\App$ or $B_pK_P^*$. One product is $C_j\App^k$. Every other product contains at least one $B_pK_P^*$; if $l$ factors $\App$ precede the first one from the left, the product has the form $C_j\App^lB_pK_P^*(\cdots)$ with $l\le k-1$. For $k\le r_j-1$, $l\le r_j-2$, so $C_j\App^lB_p=0$ by Assumption~\ref{as:reldeg}, and every such product vanishes. Hence $C_jA_p^k=C_j\App^k$ for $k\le r_j-1$. For example, $C_jA_p=C_j\App+(C_jB_p)K_P^*$, and the last term vanishes when $r_j\ge2$. Consequently, $r_j$ is the relative degree of $y_{\mathrm{lim},j}$ for the unknown plant, $d_j=C_jA_p^{r_j-1}B_p$, and $D_y$ is its decoupling matrix \cite[Sec.~5.1]{isidori1995}. The identity stops at $k=r_j$: the product with $l=r_j-1$ survives, because $C_j\App^{r_j-1}B_p=d_j\ne0$, and $C_jA_p^{r_j}=C_j\App^{r_j}+d_jK_P^*$ contains the unknown gain. This identity relies on the matched structure of Assumption~\ref{as:match}: the plant and the reference model differ only by $B_pK_P^*$, which enters like the control input, and the first $r_j-1$ derivatives of $y_{\mathrm{lim},j}$ do not see the input. If the uncertainty also entered outside the range of $B_p$, i.e., $A_p=\App+B_pK_P^*+\Delta A$ with $\Delta A\ne B_p(\cdot)$, then $C_jA_p^k$ would contain unknown terms such as $C_j\Delta A$ for $k\ge1$, and $M_1$, $N$, $T_\eta$, and $A_0$ below could not be computed from $\Ar$. If $r_j=1$ for all $j$, then $D_y=\Clim B_p$. We write $\bar r=\sum_{j=1}^mr_j$; Lemma~\ref{lem:nf} shows $\bar r\le n_p$.
 
 \begin{assumption}[Feasibility] \label{as:feas}
 For all $t\ge0$ and $i=1,\dots,2m$, the tube width $\delta_i$ of Section~\ref{sec:tube} satisfies
@@ -290,6 +290,12 @@ $A_0$ is Hurwitz, i.e., all transmission zeros of $(A_p,B_p,\Clim)$ lie in the o
 \end{assumption}
 
 Assumption~\ref{as:minphase} can be checked offline from \eqref{eq:A0}. If $\bar r=n_p$, there is no $\eta$, and the assumption is void.
+
+\emph{Independence from the reference-model gains.} $A_0$ does not depend on $K^*=[K_I^*\ K_P^*]$. The rows of $M_1$ satisfy $C_j\App^k=C_jA_p^k$ for $k\le r_j-1$, and $N$ is fixed by \eqref{eq:NBp}, so $M_1$, $N$, and $T_\eta$ are the same for every gain. For any $K_P\in\R^{m\times n_p}$, \eqref{eq:NBp} gives
+\[
+N(A_p-B_pK_P)T_\eta=NA_pT_\eta=A_0.
+\]
+The integral states do not enter \eqref{eq:etaplant} either, so $K_I^*$ does not appear. State feedback moves poles but not transmission zeros, so the choice of $\Ar$ cannot place the eigenvalues of $A_0$, and a Hurwitz $\Ar$ does not imply Assumption~\ref{as:minphase}. For example, with $n_p=2$, $m=1$, $\App=[0\ 1;\,-2\ -3]$, $B_p=[0\ 1]^\T$, $\Clim=[-1\ 1]$, and $K_I^*=-0.5$, the matrix $\Ar$ is Hurwitz and $r=1$, but $N=[1\ 0]$ and $T_\eta=[1\ 1]^\T$ give $A_0=+1$, the zero of $(s-1)/((s+1)(s+2))$.
 
 \section{Reference Model and Controller} \label{sec:ctrl}
 
